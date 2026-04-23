@@ -1,13 +1,13 @@
-package org.ticketing.paymentserver;
+package org.ticketing.payment;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class PaymentserverApplication {
+public class PaymentApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(PaymentserverApplication.class, args);
+		SpringApplication.run(PaymentApplication.class, args);
 	}
 
 }

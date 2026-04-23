@@ -1,10 +1,10 @@
-package org.ticketing.paymentserver;
+package org.ticketing.payment;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class PaymentserverApplicationTests {
+class PaymentApplicationTests {
 
 	@Test
 	void contextLoads() {

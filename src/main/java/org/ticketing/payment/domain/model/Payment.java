@@ -13,7 +13,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
-import org.iimsa.common.domain.BaseEntity;
+import org.ticketing.common.domain.BaseEntity;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -64,8 +64,10 @@ public class Payment extends BaseEntity {
         this.status = status;
     }
 
+    /*
     @Override
     public void delete(String deletedBy) {
         super.delete(deletedBy);
     }
+     */
 }

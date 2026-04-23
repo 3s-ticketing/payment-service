@@ -2,14 +2,15 @@ spring:
   application:
     name: payment
 
+  main:
+    allow-bean-definition-overriding: true  # common에서 정의가 겹쳐서 에러나길래, 추가
+
   cloud:
     config:
       import-check:
-        enabled: false
-  eureka:
-    client:
-      register-with-eureka: false
-      fetch-registry: false
+        enabled: false  #로컬 개발용 config 차단
+      discovery:
+        enabled: false  #로컬 개발용 config 차단
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT}/${DB_NAME}
@@ -23,3 +24,9 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+
+
+eureka:
+  client:
+    register-with-eureka: false  # 로컬 개발용 eruka 차단
+    fetch-registry: false        # 로컬 개발용 eruka 차단

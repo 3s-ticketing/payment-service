@@ -14,8 +14,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.ticketing.common.response.CommonResponse;
-import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
-import org.ticketing.payment.application.dto.command.UpdatePaymentStatusCommand;
 import org.ticketing.payment.application.service.PaymentService;
 import org.ticketing.payment.presentation.dto.request.CreatePaymentRequestDto;
 import org.ticketing.payment.presentation.dto.request.UpdatePaymentStatusRequestDto;
@@ -32,9 +30,7 @@ public class PaymentController {
 
     @PostMapping
     public PaymentResponseDto createPayment(@RequestBody CreatePaymentRequestDto request) {
-        return PaymentResponseDto.from(
-                paymentService.createPayment(CreatePaymentCommand.from(request))
-        );
+        return PaymentResponseDto.from(paymentService.createPayment(request.toCommand()));
     }
 
     @GetMapping("/{paymentId}")
@@ -52,8 +48,6 @@ public class PaymentController {
     public PaymentResponseDto updatePaymentStatus(
             @PathVariable UUID paymentId,
             @RequestBody UpdatePaymentStatusRequestDto request) {
-        return PaymentResponseDto.from(
-                paymentService.updatePaymentStatus(paymentId, UpdatePaymentStatusCommand.from(request))
-        );
+        return PaymentResponseDto.from(paymentService.updatePaymentStatus(paymentId, request.toCommand()));
     }
 }

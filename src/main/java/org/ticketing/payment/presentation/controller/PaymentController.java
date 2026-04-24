@@ -31,32 +31,29 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public CommonResponse<PaymentResponseDto> createPayment(@RequestBody CreatePaymentRequestDto request) {
-        PaymentResponseDto response = PaymentResponseDto.from(
+    public PaymentResponseDto createPayment(@RequestBody CreatePaymentRequestDto request) {
+        return PaymentResponseDto.from(
                 paymentService.createPayment(CreatePaymentCommand.from(request))
         );
-        return CommonResponse.success(response);
     }
 
     @GetMapping("/{paymentId}")
-    public CommonResponse<PaymentResponseDto> getPayment(@PathVariable UUID paymentId) {
-        return CommonResponse.success(PaymentResponseDto.from(paymentService.getPayment(paymentId)));
+    public PaymentResponseDto getPayment(@PathVariable UUID paymentId) {
+        return PaymentResponseDto.from(paymentService.getPayment(paymentId));
     }
 
     @GetMapping
-    public CommonResponse<Page<PaymentResponseDto>> getPayments(
+    public Page<PaymentResponseDto> getPayments(
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-        Page<PaymentResponseDto> response = paymentService.getPayments(pageable).map(PaymentResponseDto::from);
-        return CommonResponse.success(response);
+        return paymentService.getPayments(pageable).map(PaymentResponseDto::from);
     }
 
     @PatchMapping("/{paymentId}/status")
-    public CommonResponse<PaymentResponseDto> updatePaymentStatus(
+    public PaymentResponseDto updatePaymentStatus(
             @PathVariable UUID paymentId,
             @RequestBody UpdatePaymentStatusRequestDto request) {
-        return CommonResponse.success(PaymentResponseDto.from(
+        return PaymentResponseDto.from(
                 paymentService.updatePaymentStatus(paymentId, UpdatePaymentStatusCommand.from(request))
-        ));
+        );
     }
 }

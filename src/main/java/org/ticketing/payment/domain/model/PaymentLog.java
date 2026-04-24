@@ -23,7 +23,7 @@ public class PaymentLog {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", columnDefinition = "UUID DEFAULT gen_random_uuid()", nullable = false, updatable = false)
+    @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 
     @Column(name = "payment_id", nullable = false, updatable = false)

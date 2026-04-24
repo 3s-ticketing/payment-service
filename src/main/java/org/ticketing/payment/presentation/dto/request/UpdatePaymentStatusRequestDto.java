@@ -1,5 +1,6 @@
 package org.ticketing.payment.presentation.dto.request;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,6 +11,8 @@ import org.ticketing.payment.domain.model.PaymentStatus;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UpdatePaymentStatusRequestDto {
+
+    @NotNull
     private PaymentStatus status;
 
     public UpdatePaymentStatusCommand toCommand() {

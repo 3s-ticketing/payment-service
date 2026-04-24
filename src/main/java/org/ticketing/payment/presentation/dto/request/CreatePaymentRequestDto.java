@@ -1,5 +1,7 @@
 package org.ticketing.payment.presentation.dto.request;
 
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -11,9 +13,17 @@ import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 @AllArgsConstructor
 public class CreatePaymentRequestDto {
 
+    @NotNull
     private UUID userId;
+
+    @NotNull
     private UUID reservationId;
+
+    @NotNull
     private UUID seatId;
+
+    @NotNull
+    @Positive
     private Long totalPrice;
 
     public CreatePaymentCommand toCommand() {

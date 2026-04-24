@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,7 +19,13 @@ import org.ticketing.common.domain.BaseEntity;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "p_payment")
+@Table(
+        name = "p_payment",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_payment_reservation_id",
+                columnNames = {"reservation_id"}
+        )
+)
 public class Payment extends BaseEntity {
 
     @Id

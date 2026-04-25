@@ -24,7 +24,6 @@ public class PaymentService {
         Payment payment = Payment.create(
                 command.getUserId(),
                 command.getReservationId(),
-                command.getSeatId(),
                 command.getTotalPrice()
         );
         return PaymentResult.from(paymentRepository.save(payment));

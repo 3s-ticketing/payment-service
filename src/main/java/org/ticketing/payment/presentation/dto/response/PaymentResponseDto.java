@@ -12,7 +12,6 @@ public class PaymentResponseDto {
     private UUID id;
     private UUID userId;
     private UUID reservationId;
-    private UUID seatId;
     private Long totalPrice;
     private String status;
 
@@ -21,7 +20,6 @@ public class PaymentResponseDto {
                 result.getId(),
                 result.getUserId(),
                 result.getReservationId(),
-                result.getSeatId(),
                 result.getTotalPrice(),
                 result.getStatus().name()
         );

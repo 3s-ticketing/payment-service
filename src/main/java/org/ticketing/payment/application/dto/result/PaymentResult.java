@@ -13,7 +13,6 @@ public class PaymentResult {
     private UUID id;
     private UUID userId;
     private UUID reservationId;
-    private UUID seatId;
     private Long totalPrice;
     private PaymentStatus status;
 
@@ -22,7 +21,6 @@ public class PaymentResult {
                 payment.getId(),
                 payment.getUserId(),
                 payment.getReservationId(),
-                payment.getSeatId(),
                 payment.getTotalPrice(),
                 payment.getStatus()
         );

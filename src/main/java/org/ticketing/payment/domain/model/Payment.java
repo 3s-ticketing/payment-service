@@ -41,9 +41,6 @@ public class Payment extends BaseEntity {
     @Column(name = "reservation_id", nullable = false, updatable = false)
     private UUID reservationId;
 
-    @Column(name = "seat_id", nullable = false, updatable = false)
-    private UUID seatId;
-
     @Column(name = "total_price", nullable = false)
     private Long totalPrice;
 
@@ -52,19 +49,17 @@ public class Payment extends BaseEntity {
     private PaymentStatus status;
 
     @Builder
-    private Payment(UUID userId, UUID reservationId, UUID seatId, Long totalPrice) {
+    private Payment(UUID userId, UUID reservationId, Long totalPrice) {
         this.userId = userId;
         this.reservationId = reservationId;
-        this.seatId = seatId;
         this.totalPrice = totalPrice;
         this.status = PaymentStatus.INIT;
     }
 
-    public static Payment create(UUID userId, UUID reservationId, UUID seatId, Long totalPrice) {
+    public static Payment create(UUID userId, UUID reservationId, Long totalPrice) {
         return Payment.builder()
                 .userId(userId)
                 .reservationId(reservationId)
-                .seatId(seatId)
                 .totalPrice(totalPrice)
                 .build();
     }

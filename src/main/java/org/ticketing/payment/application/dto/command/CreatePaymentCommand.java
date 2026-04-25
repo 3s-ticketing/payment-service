@@ -10,6 +10,5 @@ public class CreatePaymentCommand {
 
     private UUID userId;
     private UUID reservationId;
-    private UUID seatId;
     private Long totalPrice;
 }

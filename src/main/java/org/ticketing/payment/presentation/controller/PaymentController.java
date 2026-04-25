@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.ticketing.payment.application.service.PaymentService;
 import org.ticketing.payment.presentation.dto.request.CreatePaymentRequestDto;
-import org.ticketing.payment.presentation.dto.request.UpdatePaymentStatusRequestDto;
 import org.ticketing.payment.presentation.dto.response.PaymentResponseDto;
 
 import java.util.UUID;
@@ -43,10 +42,8 @@ public class PaymentController {
         return paymentService.getPayments(pageable).map(PaymentResponseDto::from);
     }
 
-    @PatchMapping("/{paymentId}/status")
-    public PaymentResponseDto updatePaymentStatus(
-            @PathVariable @NotNull UUID paymentId,
-            @RequestBody @Valid UpdatePaymentStatusRequestDto request) {
-        return PaymentResponseDto.from(paymentService.updatePaymentStatus(paymentId, request.toCommand()));
+    @PatchMapping("/{paymentId}/cancel")
+    public PaymentResponseDto updatePaymentStatus(@PathVariable @NotNull UUID paymentId) {
+        return PaymentResponseDto.from(paymentService.cancelPayment(paymentId));
     }
 }

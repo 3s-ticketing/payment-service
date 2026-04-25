@@ -15,6 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 import org.ticketing.common.domain.BaseEntity;
+import org.ticketing.payment.domain.exception.InvalidPaymentStatusTransitionException;
+import org.ticketing.payment.domain.exception.PaymentAlreadyTerminatedException;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -55,7 +57,7 @@ public class Payment extends BaseEntity {
         this.reservationId = reservationId;
         this.seatId = seatId;
         this.totalPrice = totalPrice;
-        this.status = PaymentStatus.READY;
+        this.status = PaymentStatus.INIT;
     }
 
     public static Payment create(UUID userId, UUID reservationId, UUID seatId, Long totalPrice) {
@@ -67,14 +69,35 @@ public class Payment extends BaseEntity {
                 .build();
     }
 
-    public void updateStatus(PaymentStatus status) {
-        this.status = status;
+    private void updateStatus(PaymentStatus next) {
+        if (this.status.isTerminal()) {
+            throw new PaymentAlreadyTerminatedException(this.status);
+        }
+
+        if (!this.status.canTransitionTo(next)) {
+            throw new InvalidPaymentStatusTransitionException(this.status, next);
+        }
+
+        this.status = next;
     }
 
-    /*
-    @Override
-    public void delete(String deletedBy) {
-        super.delete(deletedBy);
+    public void start() {
+        updateStatus(PaymentStatus.IN_PROGRESS);
     }
-     */
+
+    public void succeed() {
+        updateStatus(PaymentStatus.SUCCESS);
+    }
+
+    public void fail() {
+        updateStatus(PaymentStatus.FAILED);
+    }
+
+    public void cancel() {
+        updateStatus(PaymentStatus.CANCELED);
+    }
+
+    public void expire() {
+        updateStatus(PaymentStatus.EXPIRED);
+    }
 }

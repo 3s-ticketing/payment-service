@@ -6,7 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
-import org.ticketing.payment.application.dto.command.UpdatePaymentStatusCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.model.Payment;
@@ -44,10 +43,10 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResult updatePaymentStatus(UUID paymentId, UpdatePaymentStatusCommand command) {
+    public PaymentResult cancelPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-        payment.updateStatus(command.getStatus());
+        payment.cancel();
         return PaymentResult.from(payment);
     }
 }

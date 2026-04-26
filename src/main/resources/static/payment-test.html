@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>결제 테스트 페이지</title>
+  <script src="https://js.tosspayments.com/v1/payment"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, sans-serif; background: #f5f5f5; padding: 24px; color: #333; }
+    h2 { font-size: 16px; font-weight: 600; margin-bottom: 12px; color: #111; }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+    }
+    label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; margin-top: 10px; }
+    input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    button {
+      margin-top: 14px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #3182f6;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #1b6fe3; }
+    button:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-toss {
+      background: #3182f6;
+      margin-top: 8px;
+    }
+    .btn-confirm { background: #00b386; }
+    .btn-confirm:hover { background: #009970; }
+    .btn-cancel { background: #e53935; }
+    .btn-cancel:hover { background: #c62828; }
+    .result {
+      margin-top: 12px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .result.ok  { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .result.err { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+    .result.info { background: #e3f2fd; color: #1565c0; border: 1px solid #90caf9; }
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      background: #e3f2fd;
+      color: #1565c0;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .step { font-size: 12px; color: #999; margin-bottom: 6px; }
+    hr { border: none; border-top: 1px solid #eee; margin: 6px 0 10px; }
+    .notice {
+      font-size: 12px;
+      color: #ff6d00;
+      background: #fff3e0;
+      border: 1px solid #ffcc80;
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<h2 style="font-size:20px;margin-bottom:20px;">🧪 결제 테스트</h2>
+
+<!-- Toss 클라이언트 키 설정 -->
+<div class="card">
+  <h2>Toss 클라이언트 키 설정</h2>
+  <hr/>
+  <label>API 개별 연동 클라이언트 키 (test_ck_ 또는 live_ck_ 로 시작)</label>
+  <input id="clientKey" placeholder="test_ck_..." />
+  <div class="notice">⚠ 이 키는 브라우저에서만 사용되며 서버로 전송되지 않습니다.</div>
+</div>
+
+<!-- STEP 1 -->
+<div class="card">
+  <div class="step">STEP 1</div>
+  <h2>결제 생성 <span class="badge">POST /api/payments</span></h2>
+  <hr/>
+  <label>userId (UUID)</label>
+  <input id="userId" value="11111111-1111-1111-1111-111111111111" />
+  <label>reservationId (UUID) — Toss orderId로 사용됨</label>
+  <input id="reservationId" value="22222222-2222-2222-2222-222222222222" />
+  <label>totalPrice (원)</label>
+  <input id="totalPrice" type="number" value="50000" />
+  <button onclick="createPayment()">1. 결제 생성</button>
+  <div id="createResult"></div>
+</div>
+
+<!-- STEP 2 -->
+<div class="card">
+  <div class="step">STEP 2</div>
+  <h2>Toss 결제창 호출</h2>
+  <hr/>
+  <label>paymentId (STEP 1에서 자동 입력, 또는 직접 붙여넣기)</label>
+  <input id="paymentId" placeholder="결제 생성 후 자동 입력" />
+  <button class="btn-toss" onclick="openToss()">2. Toss 결제창 열기</button>
+  <div class="notice">결제 완료 후 이 페이지로 돌아와 paymentKey가 자동 입력됩니다.</div>
+</div>
+
+<!-- STEP 3 -->
+<div class="card">
+  <div class="step">STEP 3</div>
+  <h2>결제 승인 확인 <span class="badge">POST /api/payments/{id}/success</span></h2>
+  <hr/>
+  <label>paymentId (path variable)</label>
+  <input id="confirmPaymentId" placeholder="STEP 1 결과의 id" />
+  <label>paymentKey (body)</label>
+  <input id="paymentKey" placeholder="Toss 결제 완료 후 자동 입력, 또는 직접 입력" />
+  <label>reservationId (body)</label>
+  <input id="confirmReservationId" placeholder="STEP 1에서 입력한 reservationId" />
+  <label>totalPrice (body)</label>
+  <input id="confirmPrice" type="number" placeholder="STEP 1에서 입력한 totalPrice" />
+  <button class="btn-confirm" onclick="confirmPayment()">3. 결제 승인 요청</button>
+  <div id="confirmResult"></div>
+</div>
+
+<!-- 조회 / 취소 -->
+<div class="card">
+  <div class="step">조회 / 취소</div>
+  <h2>결제 단건 조회 <span class="badge">GET /api/payments/{id}</span></h2>
+  <hr/>
+  <label>paymentId</label>
+  <input id="getPaymentId" placeholder="자동 입력" />
+  <button onclick="getPayment()">조회</button>
+  <div id="getResult"></div>
+</div>
+
+<div class="card">
+  <div class="step">조회 / 취소</div>
+  <h2>결제 취소 <span class="badge">PATCH /api/payments/{id}/cancel</span></h2>
+  <hr/>
+  <label>paymentId</label>
+  <input id="cancelPaymentId" placeholder="자동 입력" />
+  <button class="btn-cancel" onclick="cancelPayment()">결제 취소</button>
+  <div id="cancelResult"></div>
+</div>
+
+<script>
+  const BASE = '';
+
+  function show(elId, data, type = 'ok') {
+    const el = document.getElementById(elId);
+    el.className = 'result ' + type;
+    el.textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function request(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(BASE + path, opts);
+    const text = await res.text();
+    try { return { ok: res.ok, data: JSON.parse(text) }; }
+    catch { return { ok: res.ok, data: text }; }
+  }
+
+  async function createPayment() {
+    const userId = document.getElementById('userId').value.trim();
+    const reservationId = document.getElementById('reservationId').value.trim();
+    const totalPrice = Number(document.getElementById('totalPrice').value);
+    if (!userId || !reservationId || !totalPrice) {
+      show('createResult', { error: '모든 필드를 입력하세요.' }, 'err'); return;
+    }
+    const { ok, data } = await request('POST', '/api/payments', { userId, reservationId, totalPrice });
+    show('createResult', data, ok ? 'ok' : 'err');
+    if (ok && data.id) {
+      document.getElementById('paymentId').value = data.id;
+      document.getElementById('confirmPaymentId').value = data.id;
+      document.getElementById('getPaymentId').value = data.id;
+      document.getElementById('cancelPaymentId').value = data.id;
+      document.getElementById('confirmReservationId').value = reservationId;
+      document.getElementById('confirmPrice').value = totalPrice;
+      // sessionStorage에 저장 (Toss 리다이렉트 후 복원용)
+      localStorage.setItem('toss_paymentId', data.id);
+      localStorage.setItem('toss_reservationId', reservationId);
+      localStorage.setItem('toss_totalPrice', String(totalPrice));
+    }
+  }
+
+  function openToss() {
+    const clientKey = document.getElementById('clientKey').value.trim();
+    const paymentId = document.getElementById('paymentId').value.trim();
+    const reservationId = document.getElementById('reservationId').value.trim();
+    const totalPrice = Number(document.getElementById('totalPrice').value);
+
+    if (!clientKey) { alert('Toss 클라이언트 키를 입력하세요.'); return; }
+    // 입력값 없으면 sessionStorage 폴백
+    const resolvedPaymentId = paymentId || localStorage.getItem('toss_paymentId') || '';
+    if (!resolvedPaymentId) { alert('먼저 결제를 생성하세요. (STEP 1)'); return; }
+    document.getElementById('paymentId').value = resolvedPaymentId;
+    if (!reservationId || !totalPrice) { alert('reservationId와 totalPrice를 확인하세요.'); return; }
+
+    const tossPayments = TossPayments(clientKey);
+    const successUrl = window.location.href.split('?')[0] + '?success=1';
+    const failUrl    = window.location.href.split('?')[0] + '?fail=1';
+
+    tossPayments.requestPayment('카드', {
+      amount: totalPrice,
+      orderId: reservationId,
+      orderName: '티켓 결제 테스트',
+      successUrl,
+      failUrl,
+      customerName: '테스트유저',
+    });
+  }
+
+  async function confirmPayment() {
+    const paymentId   = document.getElementById('confirmPaymentId').value.trim();
+    const paymentKey  = document.getElementById('paymentKey').value.trim();
+    const reservationId = document.getElementById('confirmReservationId').value.trim();
+    const totalPrice  = Number(document.getElementById('confirmPrice').value);
+    const missing = [];
+    if (!paymentId)    missing.push('paymentId');
+    if (!paymentKey)   missing.push('paymentKey');
+    if (!reservationId) missing.push('reservationId');
+    if (!totalPrice)   missing.push('totalPrice');
+    if (missing.length) {
+      show('confirmResult', { error: '비어있는 필드: ' + missing.join(', ') }, 'err'); return;
+    }
+    const { ok, data } = await request('POST', `/api/payments/${paymentId}/success`,
+      { paymentKey, reservationId, totalPrice });
+    show('confirmResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function getPayment() {
+    const paymentId = document.getElementById('getPaymentId').value.trim();
+    if (!paymentId) { show('getResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
+    const { ok, data } = await request('GET', `/api/payments/${paymentId}`);
+    show('getResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function cancelPayment() {
+    const paymentId = document.getElementById('cancelPaymentId').value.trim();
+    if (!paymentId) { show('cancelResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
+    if (!confirm('정말 취소하시겠어요?')) return;
+    const { ok, data } = await request('PATCH', `/api/payments/${paymentId}/cancel`);
+    show('cancelResult', data, ok ? 'ok' : 'err');
+  }
+
+  // Toss 리다이렉트 후 쿼리 파라미터 자동 파싱
+  (function handleRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    const paymentKey = params.get('paymentKey');
+    const orderId    = params.get('orderId');    // = reservationId
+    const amount     = params.get('amount');
+    const fail       = params.get('fail');
+
+    if (fail) {
+      const errorCode = params.get('code') || '';
+      const errorMsg  = params.get('message') || '결제 실패';
+      show('confirmResult', { error: errorMsg, code: errorCode }, 'err');
+      history.replaceState(null, '', window.location.pathname);
+      return;
+    }
+
+    if (paymentKey && orderId && amount) {
+      // sessionStorage에서 paymentId 복원
+      const paymentId   = localStorage.getItem('toss_paymentId') || '';
+      const reservationId = localStorage.getItem('toss_reservationId') || orderId;
+      const totalPrice  = localStorage.getItem('toss_totalPrice') || amount;
+
+      document.getElementById('paymentKey').value           = paymentKey;
+      document.getElementById('confirmReservationId').value = reservationId;
+      document.getElementById('confirmPrice').value         = totalPrice;
+      document.getElementById('confirmPaymentId').value     = paymentId;
+      document.getElementById('paymentId').value            = paymentId;
+      document.getElementById('getPaymentId').value         = paymentId;
+      document.getElementById('cancelPaymentId').value      = paymentId;
+
+      show('confirmResult',
+        { message: 'Toss 결제 완료! paymentKey가 자동 입력됐습니다. STEP 3에서 승인 요청하세요.', paymentKey },
+        'info');
+
+      // URL 클린업
+      history.replaceState(null, '', window.location.pathname);
+    }
+  })();
+</script>
+</body>
+</html>

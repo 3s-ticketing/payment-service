@@ -48,10 +48,9 @@ public class PaymentController {
         return PaymentResponseDto.from(paymentService.cancelPayment(paymentId));
     }
 
-    @PostMapping("/{paymentId}/success")
+    @PostMapping("success")
     public PaymentResponseDto confirmPayment(
-            @PathVariable @NotNull UUID paymentId,
             @RequestBody @Valid PaymentSuccessRequestDto request) {
-        return PaymentResponseDto.from(paymentService.confirmPayment(paymentId, request.toCommand()));
+        return PaymentResponseDto.from(paymentService.confirmPayment(request.toCommand()));
     }
 }

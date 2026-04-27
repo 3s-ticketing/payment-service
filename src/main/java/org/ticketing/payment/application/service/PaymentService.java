@@ -10,7 +10,6 @@ import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
-import org.ticketing.payment.domain.exception.PaymentReservationMismatchException;
 import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
@@ -56,13 +55,10 @@ public class PaymentService {
     }
 
     @Transactional
-    public PaymentResult confirmPayment(UUID paymentId, ConfirmPaymentCommand command) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+    public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
+        Payment payment = paymentRepository.findByReservationId(command.getReservationId())
+                .orElseThrow(() -> new PaymentNotFoundException(command.getReservationId()));
 
-        if (!payment.getReservationId().equals(command.getReservationId())) {
-            throw new PaymentReservationMismatchException(payment.getReservationId(), command.getReservationId());
-        }
         if (!payment.getTotalPrice().equals(command.getTotalPrice())) {
             throw new PaymentAmountMismatchException(payment.getTotalPrice(), command.getTotalPrice());
         }

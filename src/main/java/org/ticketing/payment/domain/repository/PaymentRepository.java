@@ -9,6 +9,7 @@ import java.util.UUID;
 
 public interface PaymentRepository {
     Payment save(Payment payment);
+    Optional<Payment> findByReservationId(UUID reservationId);
     Optional<Payment> findById(UUID id);
     Page<Payment> findAll(Pageable pageable);
 }

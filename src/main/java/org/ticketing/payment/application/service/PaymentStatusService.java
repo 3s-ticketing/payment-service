@@ -18,9 +18,9 @@ public class PaymentStatusService {
     private final PaymentRepository paymentRepository;
 
     @Transactional
-    public void startPayment(UUID reservationId, Long expectedAmount) {
-        Payment payment = paymentRepository.findByReservationId(reservationId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+    public void startPayment(UUID paymentId, Long expectedAmount) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         if (!payment.getTotalPrice().equals(expectedAmount)) {
             throw new PaymentAmountMismatchException(payment.getTotalPrice(), expectedAmount);
         }
@@ -28,17 +28,17 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult succeedPayment(UUID reservationId) {
-        Payment payment = paymentRepository.findByReservationId(reservationId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+    public PaymentResult succeedPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.succeed();
         return PaymentResult.from(payment);
     }
 
     @Transactional
-    public PaymentResult failPayment(UUID reservationId) {
-        Payment payment = paymentRepository.findByReservationId(reservationId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+    public PaymentResult failPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.fail();
         return PaymentResult.from(payment);
     }

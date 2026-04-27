@@ -10,6 +10,5 @@ import java.util.UUID;
 
 public interface JpaPaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByIdAndDeletedAtIsNull(UUID id);
-    Optional<Payment> findByReservationIdAndDeletedAtIsNull(UUID reservationId);
     Page<Payment> findAllByDeletedAtIsNull(Pageable pageable);
 }

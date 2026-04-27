@@ -9,6 +9,6 @@ import lombok.Getter;
 public class ConfirmPaymentCommand {
 
     private String paymentKey;
-    private UUID reservationId;
+    private UUID paymentId;
     private Long totalPrice;
 }

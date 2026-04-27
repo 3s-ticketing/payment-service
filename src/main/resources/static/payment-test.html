@@ -125,8 +125,8 @@
   <hr/>
   <label>paymentKey (body)</label>
   <input id="paymentKey" placeholder="Toss 결제 완료 후 자동 입력, 또는 직접 입력" />
-  <label>reservationId (body)</label>
-  <input id="confirmReservationId" placeholder="STEP 1에서 입력한 reservationId" />
+  <label>orderId (body) — STEP 1의 payment.id</label>
+  <input id="confirmOrderId" placeholder="결제 생성 후 자동 입력" />
   <label>totalPrice (body)</label>
   <input id="confirmPrice" type="number" placeholder="STEP 1에서 입력한 totalPrice" />
   <button class="btn-confirm" onclick="confirmPayment()">3. 결제 승인 요청</button>
@@ -185,11 +185,10 @@
       document.getElementById('paymentId').value = data.id;
       document.getElementById('getPaymentId').value = data.id;
       document.getElementById('cancelPaymentId').value = data.id;
-      document.getElementById('confirmReservationId').value = reservationId;
+      document.getElementById('confirmOrderId').value = data.id;
       document.getElementById('confirmPrice').value = totalPrice;
-      // sessionStorage에 저장 (Toss 리다이렉트 후 복원용)
+      // Toss 리다이렉트 후 복원용
       localStorage.setItem('toss_paymentId', data.id);
-      localStorage.setItem('toss_reservationId', reservationId);
       localStorage.setItem('toss_totalPrice', String(totalPrice));
     }
   }
@@ -205,7 +204,7 @@
     const resolvedPaymentId = paymentId || localStorage.getItem('toss_paymentId') || '';
     if (!resolvedPaymentId) { alert('먼저 결제를 생성하세요. (STEP 1)'); return; }
     document.getElementById('paymentId').value = resolvedPaymentId;
-    if (!reservationId || !totalPrice) { alert('reservationId와 totalPrice를 확인하세요.'); return; }
+    if (!totalPrice) { alert('totalPrice를 확인하세요.'); return; }
 
     const tossPayments = TossPayments(clientKey);
     const successUrl = window.location.href.split('?')[0] + '?success=1';
@@ -213,7 +212,7 @@
 
     tossPayments.requestPayment('카드', {
       amount: totalPrice,
-      orderId: reservationId,
+      orderId: resolvedPaymentId,
       orderName: '티켓 결제 테스트',
       successUrl,
       failUrl,
@@ -222,18 +221,18 @@
   }
 
   async function confirmPayment() {
-    const paymentKey  = document.getElementById('paymentKey').value.trim();
-    const reservationId = document.getElementById('confirmReservationId').value.trim();
-    const totalPrice  = Number(document.getElementById('confirmPrice').value);
+    const paymentKey = document.getElementById('paymentKey').value.trim();
+    const orderId    = document.getElementById('confirmOrderId').value.trim();
+    const totalPrice = Number(document.getElementById('confirmPrice').value);
     const missing = [];
-    if (!paymentKey)   missing.push('paymentKey');
-    if (!reservationId) missing.push('reservationId');
-    if (!totalPrice)   missing.push('totalPrice');
+    if (!paymentKey) missing.push('paymentKey');
+    if (!orderId)    missing.push('orderId');
+    if (!totalPrice) missing.push('totalPrice');
     if (missing.length) {
       show('confirmResult', { error: '비어있는 필드: ' + missing.join(', ') }, 'err'); return;
     }
     const { ok, data } = await request('POST', '/api/payments/success',
-      { paymentKey, reservationId, totalPrice });
+      { paymentKey, orderId, totalPrice });
     show('confirmResult', data, ok ? 'ok' : 'err');
   }
 
@@ -256,7 +255,7 @@
   (function handleRedirect() {
     const params = new URLSearchParams(window.location.search);
     const paymentKey = params.get('paymentKey');
-    const orderId    = params.get('orderId');    // = reservationId
+    const orderId    = params.get('orderId');    // = payment.id
     const amount     = params.get('amount');
     const fail       = params.get('fail');
 
@@ -269,17 +268,15 @@
     }
 
     if (paymentKey && orderId && amount) {
-      // sessionStorage에서 paymentId 복원
-      const paymentId   = localStorage.getItem('toss_paymentId') || '';
-      const reservationId = localStorage.getItem('toss_reservationId') || orderId;
-      const totalPrice  = localStorage.getItem('toss_totalPrice') || amount;
+      const paymentId  = orderId; // Toss orderId = payment.id
+      const totalPrice = localStorage.getItem('toss_totalPrice') || amount;
 
-      document.getElementById('paymentKey').value           = paymentKey;
-      document.getElementById('confirmReservationId').value = reservationId;
-      document.getElementById('confirmPrice').value         = totalPrice;
-      document.getElementById('paymentId').value            = paymentId;
-      document.getElementById('getPaymentId').value         = paymentId;
-      document.getElementById('cancelPaymentId').value      = paymentId;
+      document.getElementById('paymentKey').value    = paymentKey;
+      document.getElementById('confirmOrderId').value = paymentId;
+      document.getElementById('confirmPrice').value  = totalPrice;
+      document.getElementById('paymentId').value     = paymentId;
+      document.getElementById('getPaymentId').value  = paymentId;
+      document.getElementById('cancelPaymentId').value = paymentId;
 
       show('confirmResult',
         { message: 'Toss 결제 완료! paymentKey가 자동 입력됐습니다. STEP 3에서 승인 요청하세요.', paymentKey },

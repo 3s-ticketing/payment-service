@@ -54,22 +54,22 @@ public class PaymentService {
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
-        paymentStatusService.startPayment(command.getReservationId(), command.getTotalPrice());
+        paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
         try {
             tossPaymentClient.confirm(
                     command.getPaymentKey(),
-                    command.getReservationId().toString(),
+                    command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
         } catch (RuntimeException e) {
-            paymentStatusService.failPayment(command.getReservationId());
+            paymentStatusService.failPayment(command.getPaymentId());
             throw e;
         } catch (Exception e) {
-            paymentStatusService.failPayment(command.getReservationId());
+            paymentStatusService.failPayment(command.getPaymentId());
             throw new RuntimeException(e);
         }
 
-        return paymentStatusService.succeedPayment(command.getReservationId());
+        return paymentStatusService.succeedPayment(command.getPaymentId());
     }
 }

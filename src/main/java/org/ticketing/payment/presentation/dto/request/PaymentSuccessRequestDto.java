@@ -18,13 +18,13 @@ public class PaymentSuccessRequestDto {
     private String paymentKey;
 
     @NotNull
-    private UUID reservationId;
+    private UUID paymentId;
 
     @NotNull
     @Positive
     private Long totalPrice;
 
     public ConfirmPaymentCommand toCommand() {
-        return new ConfirmPaymentCommand(paymentKey, reservationId, totalPrice);
+        return new ConfirmPaymentCommand(paymentKey, paymentId, totalPrice);
     }
 }

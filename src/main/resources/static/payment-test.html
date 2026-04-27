@@ -121,10 +121,8 @@
 <!-- STEP 3 -->
 <div class="card">
   <div class="step">STEP 3</div>
-  <h2>결제 승인 확인 <span class="badge">POST /api/payments/{id}/success</span></h2>
+  <h2>결제 승인 확인 <span class="badge">POST /api/payments/success</span></h2>
   <hr/>
-  <label>paymentId (path variable)</label>
-  <input id="confirmPaymentId" placeholder="STEP 1 결과의 id" />
   <label>paymentKey (body)</label>
   <input id="paymentKey" placeholder="Toss 결제 완료 후 자동 입력, 또는 직접 입력" />
   <label>reservationId (body)</label>
@@ -185,7 +183,6 @@
     show('createResult', data, ok ? 'ok' : 'err');
     if (ok && data.id) {
       document.getElementById('paymentId').value = data.id;
-      document.getElementById('confirmPaymentId').value = data.id;
       document.getElementById('getPaymentId').value = data.id;
       document.getElementById('cancelPaymentId').value = data.id;
       document.getElementById('confirmReservationId').value = reservationId;
@@ -225,19 +222,17 @@
   }
 
   async function confirmPayment() {
-    const paymentId   = document.getElementById('confirmPaymentId').value.trim();
     const paymentKey  = document.getElementById('paymentKey').value.trim();
     const reservationId = document.getElementById('confirmReservationId').value.trim();
     const totalPrice  = Number(document.getElementById('confirmPrice').value);
     const missing = [];
-    if (!paymentId)    missing.push('paymentId');
     if (!paymentKey)   missing.push('paymentKey');
     if (!reservationId) missing.push('reservationId');
     if (!totalPrice)   missing.push('totalPrice');
     if (missing.length) {
       show('confirmResult', { error: '비어있는 필드: ' + missing.join(', ') }, 'err'); return;
     }
-    const { ok, data } = await request('POST', `/api/payments/${paymentId}/success`,
+    const { ok, data } = await request('POST', '/api/payments/success',
       { paymentKey, reservationId, totalPrice });
     show('confirmResult', data, ok ? 'ok' : 'err');
   }
@@ -282,7 +277,6 @@
       document.getElementById('paymentKey').value           = paymentKey;
       document.getElementById('confirmReservationId').value = reservationId;
       document.getElementById('confirmPrice').value         = totalPrice;
-      document.getElementById('confirmPaymentId').value     = paymentId;
       document.getElementById('paymentId').value            = paymentId;
       document.getElementById('getPaymentId').value         = paymentId;
       document.getElementById('cancelPaymentId').value      = paymentId;

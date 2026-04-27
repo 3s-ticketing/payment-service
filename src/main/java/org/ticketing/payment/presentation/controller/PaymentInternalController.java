@@ -1,5 +1,6 @@
 package org.ticketing.payment.presentation.controller;
 
+
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +22,9 @@ import org.ticketing.payment.presentation.dto.response.PaymentResponseDto;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/payments")
+@RequestMapping("/internal/payments")
 @RequiredArgsConstructor
-public class PaymentController {
+public class PaymentInternalController {
 
     private final PaymentService paymentService;
 
@@ -41,16 +42,5 @@ public class PaymentController {
     public Page<PaymentResponseDto> getPayments(
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
         return paymentService.getPayments(pageable).map(PaymentResponseDto::from);
-    }
-
-    @PatchMapping("/{paymentId}/cancel")
-    public PaymentResponseDto updatePaymentStatus(@PathVariable @NotNull UUID paymentId) {
-        return PaymentResponseDto.from(paymentService.cancelPayment(paymentId));
-    }
-
-    @PostMapping("/success")
-    public PaymentResponseDto confirmPayment(
-            @RequestBody @Valid PaymentSuccessRequestDto request) {
-        return PaymentResponseDto.from(paymentService.confirmPayment(request.toCommand()));
     }
 }

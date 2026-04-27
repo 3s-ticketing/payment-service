@@ -30,3 +30,6 @@ eureka:
   client:
     register-with-eureka: false  # 로컬 개발용 eruka 차단
     fetch-registry: false        # 로컬 개발용 eruka 차단
+
+toss:
+  secret-key: ${TOSS_SECRET_KEY}

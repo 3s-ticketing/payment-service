@@ -11,4 +11,5 @@ public interface PaymentRepository {
     Payment save(Payment payment);
     Optional<Payment> findById(UUID id);
     Page<Payment> findAll(Pageable pageable);
+    boolean existsActivePayment(UUID reservationId);
 }

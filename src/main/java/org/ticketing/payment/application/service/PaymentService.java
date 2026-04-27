@@ -8,9 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.application.dto.command.ConfirmPaymentCommand;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
-import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
-import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
@@ -23,6 +21,7 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final TossPaymentClient tossPaymentClient;
+    private final PaymentStatusService paymentStatusService;
 
     @Transactional
     public PaymentResult createPayment(CreatePaymentCommand command) {
@@ -54,16 +53,8 @@ public class PaymentService {
         return PaymentResult.from(payment);
     }
 
-    @Transactional
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
-        Payment payment = paymentRepository.findByReservationId(command.getReservationId())
-                .orElseThrow(() -> new PaymentNotFoundException(command.getReservationId()));
-
-        if (!payment.getTotalPrice().equals(command.getTotalPrice())) {
-            throw new PaymentAmountMismatchException(payment.getTotalPrice(), command.getTotalPrice());
-        }
-
-        payment.start();
+        paymentStatusService.startPayment(command.getReservationId(), command.getTotalPrice());
 
         try {
             tossPaymentClient.confirm(
@@ -71,12 +62,14 @@ public class PaymentService {
                     command.getReservationId().toString(),
                     command.getTotalPrice()
             );
-            payment.succeed();
-        } catch (TossPaymentConfirmException e) {
-            payment.fail();
+        } catch (RuntimeException e) {
+            paymentStatusService.failPayment(command.getReservationId());
             throw e;
+        } catch (Exception e) {
+            paymentStatusService.failPayment(command.getReservationId());
+            throw new RuntimeException(e);
         }
 
-        return PaymentResult.from(payment);
+        return paymentStatusService.succeedPayment(command.getReservationId());
     }
 }

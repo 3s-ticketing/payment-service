@@ -3,6 +3,7 @@ package org.ticketing.payment.infrastructure.persistence;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Repository;
 import org.ticketing.payment.domain.outbox.OutboxStatus;
 import org.ticketing.payment.domain.outbox.PaymentOutbox;
@@ -20,8 +21,8 @@ public class PaymentOutboxRepositoryImpl implements PaymentOutboxRepository {
     }
 
     @Override
-    public List<PaymentOutbox> findAllByStatus(OutboxStatus status) {
-        return jpa.findAllByStatus(status);
+    public List<PaymentOutbox> findPendingBatch(int size) {
+        return jpa.findAllByStatus(OutboxStatus.PENDING, Limit.of(size));
     }
 
     @Override

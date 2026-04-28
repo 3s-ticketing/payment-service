@@ -6,7 +6,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.domain.event.PaymentEventPublisher;
-import org.ticketing.payment.domain.outbox.OutboxStatus;
 import org.ticketing.payment.domain.outbox.PaymentOutbox;
 import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
 
@@ -15,13 +14,15 @@ import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
 @RequiredArgsConstructor
 public class OutboxEventRelayScheduler {
 
+    private static final int BATCH_SIZE = 100; // 얼마가 적절할지 몰라, 추후에 수정하겠습니다
+
     private final PaymentOutboxRepository outboxRepository;
     private final PaymentEventPublisher paymentEventPublisher;
 
     @Scheduled(fixedDelay = 5000) // 얼마가 적절할지 추후에 수정하겠습니다
     @Transactional
     public void relay() {
-        outboxRepository.findAllByStatus(OutboxStatus.PENDING).forEach(outbox -> {
+        outboxRepository.findPendingBatch(BATCH_SIZE).forEach(outbox -> {
             boolean acquired = outboxRepository.markProcessingIfPending(outbox.getId());
             if (!acquired) {
                 return;

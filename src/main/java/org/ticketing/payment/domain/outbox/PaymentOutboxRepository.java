@@ -5,6 +5,6 @@ import java.util.UUID;
 
 public interface PaymentOutboxRepository {
     PaymentOutbox save(PaymentOutbox outbox);
-    List<PaymentOutbox> findAllByStatus(OutboxStatus status);
+    List<PaymentOutbox> findPendingBatch(int size);
     boolean markProcessingIfPending(UUID id);
 }

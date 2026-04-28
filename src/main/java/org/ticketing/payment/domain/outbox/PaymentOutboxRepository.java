@@ -1,10 +1,8 @@
 package org.ticketing.payment.domain.outbox;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface PaymentOutboxRepository {
     PaymentOutbox save(PaymentOutbox outbox);
-    List<PaymentOutbox> findPendingBatch(int size);
-    boolean markProcessingIfPending(UUID id);
+    List<PaymentOutbox> fetchAndMarkProcessing(int size);
 }

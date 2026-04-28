@@ -22,12 +22,7 @@ public class OutboxEventRelayScheduler {
     @Scheduled(fixedDelay = 5000) // 얼마가 적절할지 추후에 수정하겠습니다
     @Transactional
     public void relay() {
-        outboxRepository.findPendingBatch(BATCH_SIZE).forEach(outbox -> {
-            boolean acquired = outboxRepository.markProcessingIfPending(outbox.getId());
-            if (!acquired) {
-                return;
-            }
-
+        outboxRepository.fetchAndMarkProcessing(BATCH_SIZE).forEach(outbox -> {
             try {
                 paymentEventPublisher.publishPaymentCompleted(outbox.getPaymentId(), outbox.getOrderId());
                 outbox.markPublished();

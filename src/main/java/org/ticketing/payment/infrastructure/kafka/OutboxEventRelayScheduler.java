@@ -1,5 +1,6 @@
 package org.ticketing.payment.infrastructure.kafka;
 
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,24 +15,28 @@ import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
 @RequiredArgsConstructor
 public class OutboxEventRelayScheduler {
 
-    private static final int BATCH_SIZE = 100; // 얼마가 적절할지 몰라, 추후에 수정하겠습니다
+    private static final int BATCH_SIZE = 100; // 얼마가 적절할지 추후에 수정하겠습니다
 
     private final PaymentOutboxRepository outboxRepository;
     private final PaymentEventPublisher paymentEventPublisher;
 
     @Scheduled(fixedDelay = 5000) // 얼마가 적절할지 추후에 수정하겠습니다
     @Transactional
-    public void relay() {
-        outboxRepository.fetchAndMarkProcessing(BATCH_SIZE).forEach(outbox -> {
-            try {
-                paymentEventPublisher.publishPaymentCompleted(outbox.getPaymentId(), outbox.getOrderId());
-                outbox.markPublished();
-                log.info("Outbox event published: paymentId={}", outbox.getPaymentId());
-            } catch (Exception e) {
-                outbox.markFailed();
-                log.error("Failed to relay outbox event: id={}, paymentId={}", outbox.getId(), outbox.getPaymentId(), e);
-            }
-            outboxRepository.save(outbox);
-        });
+    public void relay() throws Exception {
+        List<PaymentOutbox> outboxes = outboxRepository.fetchAndMarkProcessing(BATCH_SIZE);
+
+        if (outboxes.isEmpty()) return;
+
+        for (PaymentOutbox outbox : outboxes) {
+            paymentEventPublisher
+                    .publishPaymentCompleted(outbox.getPaymentId(), outbox.getOrderId())
+                    .whenComplete((result, ex) -> {
+                        if (ex == null) {
+                            outbox.markPublished();
+                        } else {
+                            outbox.markFailed();
+                        }
+                    });
+        }
     }
 }

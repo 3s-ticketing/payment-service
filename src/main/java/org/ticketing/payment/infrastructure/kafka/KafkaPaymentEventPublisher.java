@@ -1,6 +1,7 @@
 package org.ticketing.payment.infrastructure.kafka;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
@@ -16,7 +17,9 @@ public class KafkaPaymentEventPublisher implements PaymentEventPublisher {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     @Override
-    public void publishPaymentCompleted(UUID paymentId, UUID orderId) {
-        kafkaTemplate.send(TOPIC, paymentId.toString(), new PaymentCompletedEvent(paymentId, orderId));
+    public CompletableFuture<Void> publishPaymentCompleted(UUID paymentId, UUID orderId) {
+        return kafkaTemplate
+                .send(TOPIC, paymentId.toString(), new PaymentCompletedEvent(paymentId, orderId))
+                .thenApply(result -> null);
     }
 }

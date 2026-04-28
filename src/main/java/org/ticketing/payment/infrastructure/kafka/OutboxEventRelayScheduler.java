@@ -22,6 +22,11 @@ public class OutboxEventRelayScheduler {
     @Transactional
     public void relay() {
         outboxRepository.findAllByStatus(OutboxStatus.PENDING).forEach(outbox -> {
+            boolean acquired = outboxRepository.markProcessingIfPending(outbox.getId());
+            if (!acquired) {
+                return;
+            }
+
             try {
                 paymentEventPublisher.publishPaymentCompleted(outbox.getPaymentId(), outbox.getOrderId());
                 outbox.markPublished();

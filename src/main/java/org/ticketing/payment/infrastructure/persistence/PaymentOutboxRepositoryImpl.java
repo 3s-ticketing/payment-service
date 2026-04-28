@@ -1,6 +1,7 @@
 package org.ticketing.payment.infrastructure.persistence;
 
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.ticketing.payment.domain.outbox.OutboxStatus;
@@ -21,5 +22,10 @@ public class PaymentOutboxRepositoryImpl implements PaymentOutboxRepository {
     @Override
     public List<PaymentOutbox> findAllByStatus(OutboxStatus status) {
         return jpa.findAllByStatus(status);
+    }
+
+    @Override
+    public boolean markProcessingIfPending(UUID id) {
+        return jpa.markProcessingIfPending(id) > 0;
     }
 }

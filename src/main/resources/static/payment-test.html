@@ -146,10 +146,10 @@
 
 <div class="card">
   <div class="step">조회 / 취소</div>
-  <h2>결제 취소 <span class="badge">PATCH /api/payments/{id}/cancel</span></h2>
+  <h2>결제 취소 <span class="badge">POST /api/payments/refund/reservations/{reservationId}</span></h2>
   <hr/>
   <label>paymentId</label>
-  <input id="cancelPaymentId" placeholder="자동 입력" />
+  <input id="cancelReservationId" placeholder="자동 입력" />
   <button class="btn-cancel" onclick="cancelPayment()">결제 취소</button>
   <div id="cancelResult"></div>
 </div>
@@ -184,7 +184,7 @@
     if (ok && data.id) {
       document.getElementById('paymentId').value = data.id;
       document.getElementById('getPaymentId').value = data.id;
-      document.getElementById('cancelPaymentId').value = data.id;
+      document.getElementById('cancelReservationId').value = reservationId;
       document.getElementById('confirmPaymentId').value = data.id;
       document.getElementById('confirmPrice').value = totalPrice;
       // Toss 리다이렉트 후 복원용
@@ -244,10 +244,10 @@
   }
 
   async function cancelPayment() {
-    const paymentId = document.getElementById('cancelPaymentId').value.trim();
-    if (!paymentId) { show('cancelResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
+    const reservationId = document.getElementById('cancelReservationId').value.trim();
+    if (!reservationId) { show('cancelResult', { error: 'reservationId 입력하세요.' }, 'err'); return; }
     if (!confirm('정말 취소하시겠어요?')) return;
-    const { ok, data } = await request('PATCH', `/api/payments/${paymentId}/cancel`);
+    const { ok, data } = await request('POST', `/api/payments/refund/reservations/${reservationId}`);
     show('cancelResult', data, ok ? 'ok' : 'err');
   }
 
@@ -276,7 +276,7 @@
       document.getElementById('confirmPrice').value  = totalPrice;
       document.getElementById('paymentId').value     = paymentId;
       document.getElementById('getPaymentId').value  = paymentId;
-      document.getElementById('cancelPaymentId').value = paymentId;
+      document.getElementById('cancelReservationId').value = document.getElementById('reservationId').value;
 
       show('confirmResult',
         { message: 'Toss 결제 완료! paymentKey가 자동 입력됐습니다. STEP 3에서 승인 요청하세요.', paymentKey },

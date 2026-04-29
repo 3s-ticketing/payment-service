@@ -8,14 +8,17 @@ import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.application.dto.command.ConfirmPaymentCommand;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
+import lombok.extern.slf4j.Slf4j;
 import org.ticketing.payment.domain.exception.DuplicatePaymentException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
+import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentService {
@@ -66,31 +69,27 @@ public class PaymentService {
         return paymentRepository.findByUserId(userId, pageable).map(PaymentResult::from);
     }
 
-    @Transactional
-    public PaymentResult cancelPayment(UUID paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-        payment.cancel();
-        return PaymentResult.from(payment);
+    public PaymentResult refundPayment(UUID reservationId) {
+        Payment payment = paymentStatusService.startRefund(reservationId);
+        tossPaymentClient.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        return paymentStatusService.refundPayment(payment.getId());
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
         paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
+        TossConfirmResponse tossResponse;
         try {
-            tossPaymentClient.confirm(
+            tossResponse = tossPaymentClient.confirm(
                     command.getPaymentKey(),
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
-        } catch (RuntimeException e) {
-            paymentStatusService.failPayment(command.getPaymentId());
-            throw e;
         } catch (Exception e) {
             paymentStatusService.failPayment(command.getPaymentId());
             throw new RuntimeException(e);
         }
 
-        return paymentStatusService.succeedPayment(command.getPaymentId());
+        return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.getPaymentKey());
     }
 }

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.domain.outbox.OutboxStatus;
 import org.ticketing.payment.domain.outbox.PaymentOutbox;
 import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
@@ -23,6 +24,7 @@ public class PaymentOutboxRepositoryImpl implements PaymentOutboxRepository {
     }
 
     @Override
+    @Transactional
     public List<PaymentOutbox> fetchAndMarkProcessing(int size) {
         QPaymentOutbox outbox = QPaymentOutbox.paymentOutbox;
 

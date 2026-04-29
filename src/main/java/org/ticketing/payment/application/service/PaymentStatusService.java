@@ -30,11 +30,11 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult succeedPayment(UUID paymentId) {
+    public PaymentResult succeedPayment(UUID paymentId, String paymentKey) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-        payment.succeed();
-        paymentOutboxRepository.save(PaymentOutbox.create(payment.getId(), payment.getReservationId()));
+        payment.succeed(paymentKey);
+        paymentOutboxRepository.save(PaymentOutbox.createCompleted(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 
@@ -43,6 +43,23 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.fail();
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional
+    public Payment startRefund(UUID reservationId) {
+        Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
+                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+        payment.startRefund();
+        return payment;
+    }
+
+    @Transactional
+    public PaymentResult refundPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        payment.refund();
+        paymentOutboxRepository.save(PaymentOutbox.createRefund(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 }

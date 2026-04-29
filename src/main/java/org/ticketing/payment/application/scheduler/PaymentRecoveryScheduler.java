@@ -25,7 +25,13 @@ public class PaymentRecoveryScheduler {
         List<Payment> stuck = recoveryService.findStuckPaying(threshold);
 
         if (stuck.isEmpty()) return;
-        stuck.forEach(recoveryService::recoverPaying);
+        stuck.forEach(payment -> {
+            try {
+                recoveryService.recoverPaying(payment);
+            } catch (Exception e) {
+                log.error("[복구 스케줄러] PAYING 복구 실패. paymentId={}", payment.getId(), e);
+            }
+        });
     }
 
     @Scheduled(fixedDelay = 60_000) // 1분 (test용)  어떻게 해야할지 고민
@@ -34,6 +40,12 @@ public class PaymentRecoveryScheduler {
         List<Payment> stuck = recoveryService.findStuckRefunding(threshold);
 
         if (stuck.isEmpty()) return;
-        stuck.forEach(recoveryService::recoverRefunding);
+        stuck.forEach(payment -> {
+            try {
+                recoveryService.recoverRefunding(payment);
+            } catch (Exception e) {
+                log.error("[복구 스케줄러] REFUNDING 복구 실패. paymentId={}", payment.getId(), e);
+            }
+        });
     }
 }

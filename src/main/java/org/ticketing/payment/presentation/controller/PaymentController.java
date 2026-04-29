@@ -60,7 +60,7 @@ public class PaymentController {
         return PaymentResponseDto.from(paymentService.getPayment(paymentId));
     }
 
-    // reservationId에 따른 결제 정보 조회 [Amdin]
+    // reservationId에 따른 결제 정보 조회 [Admin]
     @GetMapping("/reservations/{reservationId}")
     public Page<PaymentResponseDto> getPaymentsByReservationId(
             @PathVariable @NotNull UUID reservationId,

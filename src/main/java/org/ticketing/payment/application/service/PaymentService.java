@@ -69,7 +69,6 @@ public class PaymentService {
         return paymentRepository.findByUserId(userId, pageable).map(PaymentResult::from);
     }
 
-    @Transactional
     public PaymentResult cancelPayment(UUID reservationId) {
         Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
                 .orElseThrow(() -> new PaymentNotFoundException(reservationId));

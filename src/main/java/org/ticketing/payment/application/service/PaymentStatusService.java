@@ -50,7 +50,7 @@ public class PaymentStatusService {
     public PaymentResult cancelPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-        payment.cancel();
+        payment.refund();
         paymentOutboxRepository.save(PaymentOutbox.createRefund(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }

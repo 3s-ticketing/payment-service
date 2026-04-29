@@ -35,7 +35,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     @Override
     public boolean existsActivePayment(UUID reservationId) {
         return jpaPaymentRepository.existsByReservationIdAndStatusIn(
-                reservationId, List.of(PaymentStatus.INIT, PaymentStatus.IN_PROGRESS));
+                reservationId, List.of(PaymentStatus.INIT, PaymentStatus.PAYING));
     }
 
     @Override

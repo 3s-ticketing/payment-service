@@ -73,7 +73,7 @@ public class Payment extends BaseEntity {
     }
 
     public void start() {
-        updateStatus(PaymentStatus.IN_PROGRESS);
+        updateStatus(PaymentStatus.PAYING);
     }
 
     public void succeed(String paymentKey) {
@@ -82,11 +82,15 @@ public class Payment extends BaseEntity {
     }
 
     public void fail() {
-        updateStatus(PaymentStatus.FAILED);
+        updateStatus(PaymentStatus.FAIL);
     }
 
-    public void cancel() {
-        updateStatus(PaymentStatus.CANCELED);
+    public void startRefund() {
+        updateStatus(PaymentStatus.REFUNDING);
+    }
+
+    public void refund() {
+        updateStatus(PaymentStatus.REFUNDED);
     }
 
     public void expire() {

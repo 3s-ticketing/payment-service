@@ -6,18 +6,20 @@ import java.util.Set;
 
 public enum PaymentStatus {
     INIT,
-    IN_PROGRESS,
+    PAYING,
     SUCCESS,
-    FAILED,
-    CANCELED,
+    FAIL,
+    REFUNDING,
+    REFUNDED,
     EXPIRED;
 
     private static final Map<PaymentStatus, Set<PaymentStatus>> ALLOWED = Map.of(
-            INIT,        EnumSet.of(IN_PROGRESS, CANCELED, EXPIRED),
-            IN_PROGRESS, EnumSet.of(SUCCESS, FAILED, CANCELED, EXPIRED),
-            SUCCESS,     EnumSet.of(CANCELED),
-            FAILED,      EnumSet.noneOf(PaymentStatus.class),
-            CANCELED,    EnumSet.noneOf(PaymentStatus.class),
+            INIT,        EnumSet.of(PAYING, REFUNDED, EXPIRED),
+            PAYING, EnumSet.of(SUCCESS, FAIL, REFUNDING, EXPIRED),
+            SUCCESS,     EnumSet.of(REFUNDED, FAIL, EXPIRED),
+            FAIL,      EnumSet.noneOf(PaymentStatus.class),
+            REFUNDING, EnumSet.of(REFUNDED, FAIL, EXPIRED),
+            REFUNDED,    EnumSet.noneOf(PaymentStatus.class),
             EXPIRED,     EnumSet.noneOf(PaymentStatus.class)
     );
 
@@ -26,7 +28,8 @@ public enum PaymentStatus {
     }
 
     public boolean isTerminal() {
-        return this == CANCELED ||
+        return this == FAIL ||
+                this == REFUNDED ||
                 this == EXPIRED;
     }
 }

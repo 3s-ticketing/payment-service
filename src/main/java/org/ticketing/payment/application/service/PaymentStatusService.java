@@ -1,5 +1,6 @@
 package org.ticketing.payment.application.service;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -7,15 +8,16 @@ import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.model.Payment;
+import org.ticketing.payment.domain.outbox.PaymentOutbox;
+import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
 import org.ticketing.payment.domain.repository.PaymentRepository;
-
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class PaymentStatusService {
 
     private final PaymentRepository paymentRepository;
+    private final PaymentOutboxRepository paymentOutboxRepository;
 
     @Transactional
     public void startPayment(UUID paymentId, Long expectedAmount) {
@@ -32,6 +34,7 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.succeed();
+        paymentOutboxRepository.save(PaymentOutbox.create(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 

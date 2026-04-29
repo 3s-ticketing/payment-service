@@ -37,6 +37,9 @@ public class Payment extends BaseEntity {
     @Column(name = "total_price", nullable = false)
     private Long totalPrice;
 
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 15, nullable = false)
     private PaymentStatus status;
@@ -73,8 +76,9 @@ public class Payment extends BaseEntity {
         updateStatus(PaymentStatus.IN_PROGRESS);
     }
 
-    public void succeed() {
+    public void succeed(String paymentKey) {
         updateStatus(PaymentStatus.SUCCESS);
+        this.paymentKey = paymentKey;
     }
 
     public void fail() {

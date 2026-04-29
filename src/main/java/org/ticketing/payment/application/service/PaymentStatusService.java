@@ -34,7 +34,7 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.succeed(paymentKey);
-        paymentOutboxRepository.save(PaymentOutbox.create(payment.getId(), payment.getReservationId()));
+        paymentOutboxRepository.save(PaymentOutbox.createCompleted(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 
@@ -51,6 +51,7 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.cancel();
+        paymentOutboxRepository.save(PaymentOutbox.createRefund(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 }

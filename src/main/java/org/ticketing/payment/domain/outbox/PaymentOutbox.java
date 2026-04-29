@@ -51,9 +51,17 @@ public class PaymentOutbox extends BaseEntity {
         this.status = OutboxStatus.PENDING;
     }
 
-    public static PaymentOutbox create(UUID paymentId, UUID orderId) {
+    public static PaymentOutbox createCompleted(UUID paymentId, UUID orderId) {
         return PaymentOutbox.builder()
                 .topic("payment.completed")
+                .paymentId(paymentId)
+                .orderId(orderId)
+                .build();
+    }
+
+    public static PaymentOutbox createRefund(UUID paymentId, UUID orderId) {
+        return PaymentOutbox.builder()
+                .topic("payment.refunded")
                 .paymentId(paymentId)
                 .orderId(orderId)
                 .build();

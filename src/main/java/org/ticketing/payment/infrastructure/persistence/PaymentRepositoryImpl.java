@@ -37,4 +37,19 @@ public class PaymentRepositoryImpl implements PaymentRepository {
         return jpaPaymentRepository.existsByReservationIdAndStatusIn(
                 reservationId, List.of(PaymentStatus.INIT, PaymentStatus.IN_PROGRESS));
     }
+
+    @Override
+    public Page<Payment> findByReservationId(UUID reservationId, Pageable pageable) {
+        return jpaPaymentRepository.findByReservationIdAndDeletedAtIsNull(reservationId, pageable);
+    }
+
+    @Override
+    public Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, PaymentStatus.SUCCESS);
+    }
+
+    @Override
+    public Page<Payment> findByUserId(UUID userId, Pageable pageable) {
+        return jpaPaymentRepository.findByUserIdAndDeletedAtIsNull(userId, pageable);
+    }
 }

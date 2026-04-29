@@ -12,4 +12,7 @@ public interface PaymentRepository {
     Optional<Payment> findById(UUID id);
     Page<Payment> findAll(Pageable pageable);
     boolean existsActivePayment(UUID reservationId);
+    Page<Payment> findByReservationId(UUID reservationId, Pageable pageable);
+    Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId);
+    Page<Payment> findByUserId(UUID userId, Pageable pageable);
 }

@@ -6,7 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.ticketing.payment.domain.exception.TossPaymentCancelException;
 import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
+import org.ticketing.payment.infrastructure.toss.dto.TossCancelRequest;
+import org.ticketing.payment.infrastructure.toss.dto.TossCancelResponse;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmRequest;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
 
@@ -39,5 +42,28 @@ public class TossPaymentClient {
                         }
                 )
                 .body(TossConfirmResponse.class);
+    }
+
+    public TossCancelResponse cancel(String paymentKey, String cancelReason) {
+        String encoded = Base64.getEncoder()
+                .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
+
+        return RestClient.builder()
+                .baseUrl(TOSS_BASE_URL)
+                .build()
+                .post()
+                .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                .header("Authorization", "Basic " + encoded)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new TossCancelRequest(cancelReason))
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new TossPaymentCancelException(response.getStatusCode().value(), body);
+                        }
+                )
+                .body(TossCancelResponse.class);
     }
 }

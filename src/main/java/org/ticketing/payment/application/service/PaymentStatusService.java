@@ -30,10 +30,10 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult succeedPayment(UUID paymentId) {
+    public PaymentResult succeedPayment(UUID paymentId, String paymentKey) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
-        payment.succeed();
+        payment.succeed(paymentKey);
         paymentOutboxRepository.save(PaymentOutbox.create(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
@@ -43,6 +43,14 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.fail();
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional
+    public PaymentResult cancelPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        payment.cancel();
         return PaymentResult.from(payment);
     }
 }

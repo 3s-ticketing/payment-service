@@ -75,9 +75,10 @@ public class PaymentController {
         return paymentService.getPayments(pageable).map(PaymentResponseDto::from);
     }
 
-    @PatchMapping("/{paymentId}/cancel")
-    public PaymentResponseDto updatePaymentStatus(@PathVariable @NotNull UUID paymentId) {
-        return PaymentResponseDto.from(paymentService.cancelPayment(paymentId));
+    // 결제 환불 [Customer]
+    @PostMapping("/refund/reservations/{reservationId}")
+    public PaymentResponseDto refundPayment(@PathVariable @NotNull UUID reservationId) {
+        return PaymentResponseDto.from(paymentService.cancelPayment(reservationId));
     }
 
     // 결제 승인 [PG]

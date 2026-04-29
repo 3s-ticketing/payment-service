@@ -15,7 +15,7 @@ public enum PaymentStatus {
     private static final Map<PaymentStatus, Set<PaymentStatus>> ALLOWED = Map.of(
             INIT,        EnumSet.of(IN_PROGRESS, CANCELED, EXPIRED),
             IN_PROGRESS, EnumSet.of(SUCCESS, FAILED, CANCELED, EXPIRED),
-            SUCCESS,     EnumSet.noneOf(PaymentStatus.class),
+            SUCCESS,     EnumSet.of(CANCELED),
             FAILED,      EnumSet.noneOf(PaymentStatus.class),
             CANCELED,    EnumSet.noneOf(PaymentStatus.class),
             EXPIRED,     EnumSet.noneOf(PaymentStatus.class)
@@ -26,9 +26,7 @@ public enum PaymentStatus {
     }
 
     public boolean isTerminal() {
-        return this == SUCCESS ||
-                this == FAILED ||
-                this == CANCELED ||
+        return this == CANCELED ||
                 this == EXPIRED;
     }
 }

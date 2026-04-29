@@ -21,7 +21,6 @@ public class OutboxEventRelayScheduler {
     private final PaymentEventPublisher paymentEventPublisher;
 
     @Scheduled(fixedDelay = 5000) // 얼마가 적절할지 추후에 수정하겠습니다
-    @Transactional
     public void relay() throws Exception {
         List<PaymentOutbox> outboxes = outboxRepository.fetchAndMarkProcessing(BATCH_SIZE);
 
@@ -36,6 +35,7 @@ public class OutboxEventRelayScheduler {
                         } else {
                             outbox.markFailed();
                         }
+                        outboxRepository.save(outbox);
                     });
         }
     }

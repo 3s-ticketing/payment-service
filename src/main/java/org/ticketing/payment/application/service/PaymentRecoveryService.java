@@ -80,8 +80,8 @@ public class PaymentRecoveryService {
                 // toss X, payment status X
                 Duration stuckFor = Duration.between(payment.getModifiedAt(), LocalDateTime.now());
                 if (stuckFor.compareTo(REFUND_ABANDON_THRESHOLD) > 0) {
-                    log.error("[복구 포기] REFUNDING 15분 초과 — 실패 처리. paymentId={}, stuckMinutes={}", paymentId, stuckFor.toMinutes());
-                    paymentStatusService.failPayment(paymentId);
+                    log.error("[복구 포기] REFUNDING 15분 초과 — 환불 없던 일로 처리. paymentId={}, stuckMinutes={}", paymentId, stuckFor.toMinutes());
+                    paymentStatusService.succeedPayment(paymentId, null);
                     return;
                 }
                 log.info("[복구] REFUNDING - Toss 미취소 상태, 취소 재시도. paymentId={}", paymentId);

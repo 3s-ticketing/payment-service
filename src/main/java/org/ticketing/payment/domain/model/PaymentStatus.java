@@ -18,7 +18,7 @@ public enum PaymentStatus {
             PAYING, EnumSet.of(SUCCESS, FAIL, REFUNDING, EXPIRED),
             SUCCESS,     EnumSet.of(REFUNDED, FAIL, EXPIRED),
             FAIL,      EnumSet.noneOf(PaymentStatus.class),
-            REFUNDING, EnumSet.of(REFUNDED, FAIL, EXPIRED),
+            REFUNDING, EnumSet.of(REFUNDED, SUCCESS, FAIL, EXPIRED),
             REFUNDED,    EnumSet.noneOf(PaymentStatus.class),
             EXPIRED,     EnumSet.noneOf(PaymentStatus.class)
     );

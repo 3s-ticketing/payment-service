@@ -78,7 +78,7 @@ public class Payment extends BaseEntity {
 
     public void succeed(String paymentKey) {
         updateStatus(PaymentStatus.SUCCESS);
-        this.paymentKey = paymentKey;
+        if (paymentKey != null) this.paymentKey = paymentKey;
     }
 
     public void fail() {

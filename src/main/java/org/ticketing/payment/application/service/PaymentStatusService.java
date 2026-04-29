@@ -47,7 +47,15 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult cancelPayment(UUID paymentId) {
+    public Payment startRefund(UUID reservationId) {
+        Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
+                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+        payment.startRefund();
+        return payment;
+    }
+
+    @Transactional
+    public PaymentResult refundPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.refund();

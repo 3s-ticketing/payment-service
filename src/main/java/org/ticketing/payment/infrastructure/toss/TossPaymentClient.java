@@ -12,6 +12,7 @@ import org.ticketing.payment.infrastructure.toss.dto.TossCancelRequest;
 import org.ticketing.payment.infrastructure.toss.dto.TossCancelResponse;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmRequest;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
+import org.ticketing.payment.infrastructure.toss.dto.TossPaymentStatusResponse;
 
 @Component
 @RequiredArgsConstructor
@@ -65,5 +66,34 @@ public class TossPaymentClient {
                         }
                 )
                 .body(TossCancelResponse.class);
+    }
+
+    // TOSS에서의 orderId = Payment service의 paymentId
+    public TossPaymentStatusResponse getByOrderId(String orderId) {
+        String encoded = Base64.getEncoder()
+                .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
+
+        return RestClient.builder()
+                .baseUrl(TOSS_BASE_URL)
+                .build()
+                .get()
+                .uri("/v1/payments/orders/{orderId}", orderId)
+                .header("Authorization", "Basic " + encoded)
+                .retrieve()
+                .body(TossPaymentStatusResponse.class);
+    }
+
+    public TossPaymentStatusResponse getByPaymentKey(String paymentKey) {
+        String encoded = Base64.getEncoder()
+                .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
+
+        return RestClient.builder()
+                .baseUrl(TOSS_BASE_URL)
+                .build()
+                .get()
+                .uri("/v1/payments/{paymentKey}", paymentKey)
+                .header("Authorization", "Basic " + encoded)
+                .retrieve()
+                .body(TossPaymentStatusResponse.class);
     }
 }

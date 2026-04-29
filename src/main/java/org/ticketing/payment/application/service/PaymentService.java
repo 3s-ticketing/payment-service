@@ -69,12 +69,10 @@ public class PaymentService {
         return paymentRepository.findByUserId(userId, pageable).map(PaymentResult::from);
     }
 
-    public PaymentResult cancelPayment(UUID reservationId) {
-        Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
-
+    public PaymentResult refundPayment(UUID reservationId) {
+        Payment payment = paymentStatusService.startRefund(reservationId);
         tossPaymentClient.cancel(payment.getPaymentKey(), "고객 요청 취소");
-        return paymentStatusService.cancelPayment(payment.getId());
+        return paymentStatusService.refundPayment(payment.getId());
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
@@ -87,9 +85,6 @@ public class PaymentService {
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
-        } catch (RuntimeException e) {
-            paymentStatusService.failPayment(command.getPaymentId());
-            throw e;
         } catch (Exception e) {
             paymentStatusService.failPayment(command.getPaymentId());
             throw new RuntimeException(e);

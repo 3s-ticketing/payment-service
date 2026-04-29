@@ -7,7 +7,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -78,7 +77,7 @@ public class PaymentController {
     // 결제 환불 [Customer]
     @PostMapping("/refund/reservations/{reservationId}")
     public PaymentResponseDto refundPayment(@PathVariable @NotNull UUID reservationId) {
-        return PaymentResponseDto.from(paymentService.cancelPayment(reservationId));
+        return PaymentResponseDto.from(paymentService.refundPayment(reservationId));
     }
 
     // 결제 승인 [PG]

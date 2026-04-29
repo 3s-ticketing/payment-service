@@ -45,7 +45,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
 
     @Override
     public Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId) {
-        return jpaPaymentRepository.findByReservationIdAndStatusAndDeletedAtIsNull(reservationId, PaymentStatus.SUCCESS);
+        return jpaPaymentRepository.findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, PaymentStatus.SUCCESS);
     }
 
     @Override

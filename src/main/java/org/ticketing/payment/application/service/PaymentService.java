@@ -49,6 +49,23 @@ public class PaymentService {
         return paymentRepository.findAll(pageable).map(PaymentResult::from);
     }
 
+    @Transactional(readOnly = true)
+    public Page<PaymentResult> getPaymentsByReservationId(UUID reservationId, Pageable pageable) {
+        return paymentRepository.findByReservationId(reservationId, pageable).map(PaymentResult::from);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentResult getSuccessPaymentByReservationId(UUID reservationId) {
+        Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
+                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PaymentResult> getPaymentsByUserId(UUID userId, Pageable pageable) {
+        return paymentRepository.findByUserId(userId, pageable).map(PaymentResult::from);
+    }
+
     @Transactional
     public PaymentResult cancelPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)

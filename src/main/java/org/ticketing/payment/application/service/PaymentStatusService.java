@@ -43,6 +43,7 @@ public class PaymentStatusService {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));
         payment.fail();
+        paymentOutboxRepository.save(PaymentOutbox.createFailed(payment.getId(), payment.getReservationId()));
         return PaymentResult.from(payment);
     }
 

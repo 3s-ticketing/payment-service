@@ -59,6 +59,14 @@ public class PaymentOutbox extends BaseEntity {
                 .build();
     }
 
+    public static PaymentOutbox createFailed(UUID paymentId, UUID orderId) {
+        return PaymentOutbox.builder()
+                .topic("payment.failed")
+                .paymentId(paymentId)
+                .orderId(orderId)
+                .build();
+    }
+
     public static PaymentOutbox createRefund(UUID paymentId, UUID orderId) {
         return PaymentOutbox.builder()
                 .topic("payment.refunded")

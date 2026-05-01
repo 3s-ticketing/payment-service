@@ -11,6 +11,7 @@ import org.ticketing.payment.application.dto.result.PaymentResult;
 import lombok.extern.slf4j.Slf4j;
 import org.ticketing.payment.domain.exception.DuplicatePaymentException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
+import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
@@ -73,6 +74,14 @@ public class PaymentService {
         Payment payment = paymentStatusService.startRefund(reservationId);
         tossPaymentClient.cancel(payment.getPaymentKey(), "고객 요청 취소");
         return paymentStatusService.refundPayment(payment.getId());
+    }
+
+    public void handleReservationCanceled(UUID reservationId, CancelReason cancelReason) {
+        if (paymentRepository.findSuccessPaymentByReservationId(reservationId).isEmpty()) {
+            // Success된 결제가 없어서, 환불 이벤트 씹음
+            return;
+        }
+        refundPayment(reservationId);
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {

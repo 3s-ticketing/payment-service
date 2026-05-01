@@ -16,7 +16,7 @@ public enum PaymentStatus {
     private static final Map<PaymentStatus, Set<PaymentStatus>> ALLOWED = Map.of(
             INIT,        EnumSet.of(PAYING, EXPIRED),
             PAYING, EnumSet.of(SUCCESS, FAIL, REFUNDING, EXPIRED),
-            SUCCESS,     EnumSet.of(REFUNDED, FAIL, EXPIRED),
+            SUCCESS,     EnumSet.of(REFUNDING, FAIL, EXPIRED),
             FAIL,      EnumSet.noneOf(PaymentStatus.class),
             REFUNDING, EnumSet.of(REFUNDED, SUCCESS, FAIL, EXPIRED),
             REFUNDED,    EnumSet.noneOf(PaymentStatus.class),

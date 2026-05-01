@@ -26,6 +26,7 @@ public class ReservationEventConsumer {
             event = objectMapper.readValue(payload, ReservationCanceledEvent.class);
         } catch (Exception e) {
             log.error("Failed to deserialize reservation.canceled event. payload={}", payload, e);
+            // Todo: DLT?
             return;
         }
 

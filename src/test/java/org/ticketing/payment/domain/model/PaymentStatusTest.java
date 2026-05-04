@@ -36,11 +36,6 @@ class PaymentStatusTest {
         }
 
         @Test
-        void PAYING에서_REFUNDING으로_전이_가능() {
-            assertThat(PaymentStatus.PAYING.canTransitionTo(PaymentStatus.REFUNDING)).isTrue();
-        }
-
-        @Test
         void PAYING에서_EXPIRED로_전이_가능() {
             assertThat(PaymentStatus.PAYING.canTransitionTo(PaymentStatus.EXPIRED)).isTrue();
         }

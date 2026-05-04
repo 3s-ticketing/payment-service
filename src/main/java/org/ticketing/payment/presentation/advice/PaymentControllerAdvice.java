@@ -38,8 +38,12 @@ public class PaymentControllerAdvice {
 
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        log.warn("DataIntegrityViolation (concurrent duplicate payment): {}", ex.getMostSpecificCause().getMessage());
-        return errorResponse(HttpStatus.CONFLICT, "Active payment already exists for this reservation");
+        String cause = ex.getMostSpecificCause().getMessage();
+        log.warn("DataIntegrityViolation: {}", cause);
+        if (cause != null && cause.toLowerCase().contains("unique")) {
+            return errorResponse(HttpStatus.CONFLICT, "Active payment already exists for this reservation");
+        }
+        return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "A database integrity error occurred");
     }
 
     @ExceptionHandler(InvalidPaymentStatusTransitionException.class)
@@ -65,13 +69,13 @@ public class PaymentControllerAdvice {
     @ExceptionHandler(TossPaymentConfirmException.class)
     public ResponseEntity<Map<String, Object>> handleTossConfirmFail(TossPaymentConfirmException ex) {
         log.error("Toss confirm failed: {}", ex.getMessage());
-        return errorResponse(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        return errorResponse(HttpStatus.BAD_GATEWAY, "Payment confirmation failed due to an upstream error");
     }
 
     @ExceptionHandler(TossPaymentCancelException.class)
     public ResponseEntity<Map<String, Object>> handleTossCancelFail(TossPaymentCancelException ex) {
         log.error("Toss cancel failed: {}", ex.getMessage());
-        return errorResponse(HttpStatus.BAD_GATEWAY, ex.getMessage());
+        return errorResponse(HttpStatus.BAD_GATEWAY, "Payment cancellation failed due to an upstream error");
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String message) {

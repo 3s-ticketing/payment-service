@@ -38,9 +38,17 @@ public class PaymentLog {
     private PaymentStatus toStatus;
 
     @Builder
-    public PaymentLog(UUID paymentId, PaymentStatus fromStatus, PaymentStatus toStatus) {
+    private PaymentLog(UUID paymentId, PaymentStatus fromStatus, PaymentStatus toStatus) {
         this.paymentId = paymentId;
         this.fromStatus = fromStatus;
         this.toStatus = toStatus;
+    }
+
+    public static PaymentLog create(UUID paymentId, PaymentStatus fromStatus, PaymentStatus toStatus) {
+        return PaymentLog.builder()
+                .paymentId(paymentId)
+                .fromStatus(fromStatus)
+                .toStatus(toStatus)
+                .build();
     }
 }

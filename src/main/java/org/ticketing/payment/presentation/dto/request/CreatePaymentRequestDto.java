@@ -19,11 +19,7 @@ public class CreatePaymentRequestDto {
     @NotNull
     private UUID reservationId;
 
-    @NotNull
-    @Positive
-    private Long totalPrice;
-
     public CreatePaymentCommand toCommand() {
-        return new CreatePaymentCommand(userId, reservationId, totalPrice);
+        return new CreatePaymentCommand(userId, reservationId);
     }
 }

@@ -12,4 +12,5 @@ import org.springframework.stereotype.Component;
 public class TossPaymentProperties {
 
     private String secretKey;
+    private String baseUrl = "https://api.tosspayments.com";
 }

@@ -18,8 +18,6 @@ import org.ticketing.payment.infrastructure.toss.dto.TossPaymentStatusResponse;
 @RequiredArgsConstructor
 public class TossPaymentClient {
 
-    private static final String TOSS_BASE_URL = "https://api.tosspayments.com";
-
     private final TossPaymentProperties properties;
 
     public TossConfirmResponse confirm(String paymentKey, String orderId, Long amount) {
@@ -27,7 +25,7 @@ public class TossPaymentClient {
                 .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
 
         return RestClient.builder()
-                .baseUrl(TOSS_BASE_URL)
+                .baseUrl(properties.getBaseUrl())
                 .build()
                 .post()
                 .uri("/v1/payments/confirm")
@@ -50,7 +48,7 @@ public class TossPaymentClient {
                 .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
 
         return RestClient.builder()
-                .baseUrl(TOSS_BASE_URL)
+                .baseUrl(properties.getBaseUrl())
                 .build()
                 .post()
                 .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
@@ -74,7 +72,7 @@ public class TossPaymentClient {
                 .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
 
         return RestClient.builder()
-                .baseUrl(TOSS_BASE_URL)
+                .baseUrl(properties.getBaseUrl())
                 .build()
                 .get()
                 .uri("/v1/payments/orders/{orderId}", orderId)
@@ -88,7 +86,7 @@ public class TossPaymentClient {
                 .encodeToString((properties.getSecretKey() + ":").getBytes(StandardCharsets.UTF_8));
 
         return RestClient.builder()
-                .baseUrl(TOSS_BASE_URL)
+                .baseUrl(properties.getBaseUrl())
                 .build()
                 .get()
                 .uri("/v1/payments/{paymentKey}", paymentKey)

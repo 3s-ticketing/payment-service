@@ -30,6 +30,10 @@ public class PaymentService {
 
     @Transactional
     public PaymentResult createPayment(CreatePaymentCommand command) {
+
+        // Todo: [Feign] Reservation reservationId에 대한 reservation 정보 대조 (totalPrice, userId)
+        // Todo: [Feign] Reservation 해당 예약 상태가 PENDING인지 & 좌석 상태가 HOLD인지 확인
+
         if (paymentRepository.existsActivePayment(command.getReservationId())) {
             throw new DuplicatePaymentException(command.getReservationId());
         }

@@ -10,10 +10,13 @@ import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import lombok.extern.slf4j.Slf4j;
 import org.ticketing.payment.domain.exception.DuplicatePaymentException;
+import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
+import org.ticketing.payment.infrastructure.feign.ReservationFeignClient;
+import org.ticketing.payment.infrastructure.feign.dto.InternalReservationResponse;
 import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
 
@@ -27,11 +30,15 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final TossPaymentClient tossPaymentClient;
     private final PaymentStatusService paymentStatusService;
+    private final ReservationFeignClient reservationFeignClient;
 
     @Transactional
     public PaymentResult createPayment(CreatePaymentCommand command) {
 
-        // Todo: [Feign] Reservation reservationId에 대한 reservation 정보 대조 (totalPrice, userId)
+        InternalReservationResponse reservation = reservationFeignClient.getReservation(command.getReservationId());
+        if (!reservation.getUserId().equals(command.getUserId())) {
+            throw new IllegalArgumentException("예약의 userId 불일치: 예약 userId " + reservation.getUserId() + ", 요청 userId " + command.getUserId());
+        }
         // Todo: [Feign] Reservation 해당 예약 상태가 PENDING인지 & 좌석 상태가 HOLD인지 확인
 
         if (paymentRepository.existsActivePayment(command.getReservationId())) {
@@ -40,7 +47,7 @@ public class PaymentService {
         Payment payment = Payment.create(
                 command.getUserId(),
                 command.getReservationId(),
-                command.getTotalPrice()
+                reservation.getTotalPrice()
         );
         return PaymentResult.from(paymentRepository.save(payment));
     }

@@ -8,6 +8,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public class ConfirmPaymentCommand {
 
+    private UUID userId;
     private String paymentKey;
     private UUID paymentId;
     private Long totalPrice;

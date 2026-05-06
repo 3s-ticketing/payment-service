@@ -16,6 +16,8 @@ import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 import org.ticketing.payment.domain.repository.PaymentRepository;
+import org.ticketing.payment.infrastructure.feign.ReservationFeignClient;
+import org.ticketing.payment.infrastructure.feign.dto.InternalReservationResponse;
 import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
 
@@ -36,6 +38,7 @@ class PaymentServiceTest {
     @Mock PaymentRepository paymentRepository;
     @Mock TossPaymentClient tossPaymentClient;
     @Mock PaymentStatusService paymentStatusService;
+    @Mock ReservationFeignClient reservationFeignClient;
     @InjectMocks PaymentService paymentService;
 
     private static final UUID USER_ID = UUID.randomUUID();
@@ -51,13 +54,17 @@ class PaymentServiceTest {
 
         @BeforeEach
         void setUp() {
-            command = new CreatePaymentCommand(USER_ID, RESERVATION_ID, PRICE);
+            command = new CreatePaymentCommand(USER_ID, RESERVATION_ID);
         }
 
         @Test
         void 정상_생성() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
+            InternalReservationResponse reservationResponse =
+                    new InternalReservationResponse(RESERVATION_ID, USER_ID, PRICE);
+            given(reservationFeignClient.getReservation(RESERVATION_ID)).willReturn(reservationResponse);
             given(paymentRepository.existsActivePayment(RESERVATION_ID)).willReturn(false);
+
+            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
             given(paymentRepository.save(any(Payment.class))).willReturn(payment);
 
             PaymentResult result = paymentService.createPayment(command);
@@ -69,12 +76,23 @@ class PaymentServiceTest {
         }
 
         @Test
-        void 결제_정보와_불일치시() {
+        void userId_불일치시_IllegalArgumentException() {
+            UUID otherUserId = UUID.randomUUID();
+            InternalReservationResponse reservationResponse =
+                    new InternalReservationResponse(RESERVATION_ID, otherUserId, PRICE);
+            given(reservationFeignClient.getReservation(RESERVATION_ID)).willReturn(reservationResponse);
 
+            assertThatThrownBy(() -> paymentService.createPayment(command))
+                    .isInstanceOf(IllegalArgumentException.class);
+
+            verify(paymentRepository, never()).save(any());
         }
 
         @Test
         void 동일_예약에_진행중인_결제_존재시_DuplicatePaymentException() {
+            InternalReservationResponse reservationResponse =
+                    new InternalReservationResponse(RESERVATION_ID, USER_ID, PRICE);
+            given(reservationFeignClient.getReservation(RESERVATION_ID)).willReturn(reservationResponse);
             given(paymentRepository.existsActivePayment(RESERVATION_ID)).willReturn(true);
 
             assertThatThrownBy(() -> paymentService.createPayment(command))

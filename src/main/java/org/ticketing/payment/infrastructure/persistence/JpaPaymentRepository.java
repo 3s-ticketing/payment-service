@@ -12,10 +12,13 @@ import org.ticketing.payment.domain.model.PaymentStatus;
 
 public interface JpaPaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findByIdAndDeletedAtIsNull(UUID id);
+    Optional<Payment> findByIdAndUserIdAndDeletedAtIsNull(UUID id, UUID userId);
     Page<Payment> findAllByDeletedAtIsNull(Pageable pageable);
     boolean existsByReservationIdAndStatusIn(UUID reservationId, List<PaymentStatus> statuses);
     Page<Payment> findByReservationIdAndDeletedAtIsNull(UUID reservationId, Pageable pageable);
+    Page<Payment> findByReservationIdAndUserIdAndDeletedAtIsNull(UUID reservationId, UUID userId, Pageable pageable);
     Optional<Payment> findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId, PaymentStatus status);
+    Optional<Payment> findFirstByReservationIdAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId, UUID userId, PaymentStatus status);
     Page<Payment> findByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
     List<Payment> findByStatusAndModifiedAtBeforeAndDeletedAtIsNull(PaymentStatus status, LocalDateTime before);
 }

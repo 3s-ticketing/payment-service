@@ -28,6 +28,11 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     }
 
     @Override
+    public Optional<Payment> findByIdAndUserId(UUID id, UUID userId) {
+        return jpaPaymentRepository.findByIdAndUserIdAndDeletedAtIsNull(id, userId);
+    }
+
+    @Override
     public Page<Payment> findAll(Pageable pageable) {
         return jpaPaymentRepository.findAllByDeletedAtIsNull(pageable);
     }
@@ -44,8 +49,18 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     }
 
     @Override
+    public Page<Payment> findByReservationIdAndUserId(UUID reservationId, UUID userId, Pageable pageable) {
+        return jpaPaymentRepository.findByReservationIdAndUserIdAndDeletedAtIsNull(reservationId, userId, pageable);
+    }
+
+    @Override
     public Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId) {
         return jpaPaymentRepository.findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, PaymentStatus.SUCCESS);
+    }
+
+    @Override
+    public Optional<Payment> findSuccessPaymentByReservationIdAndUserId(UUID reservationId, UUID userId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, userId, PaymentStatus.SUCCESS);
     }
 
     @Override

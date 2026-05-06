@@ -24,7 +24,7 @@ public class PaymentSuccessRequestDto {
     @Positive
     private Long totalPrice;
 
-    public ConfirmPaymentCommand toCommand() {
-        return new ConfirmPaymentCommand(paymentKey, paymentId, totalPrice);
+    public ConfirmPaymentCommand toCommand(UUID userId) {
+        return new ConfirmPaymentCommand(userId, paymentKey, paymentId, totalPrice);
     }
 }

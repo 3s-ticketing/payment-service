@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 import org.ticketing.payment.domain.repository.PaymentRepository;
-import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
-import org.ticketing.payment.infrastructure.toss.dto.TossPaymentStatusResponse;
+import org.ticketing.payment.domain.provider.TossPaymentProvider;
+import org.ticketing.payment.domain.provider.TossPaymentProvider.StatusResult;
 
 @Slf4j
 @Service
@@ -23,7 +23,7 @@ public class PaymentRecoveryService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentStatusService paymentStatusService;
-    private final TossPaymentClient tossPaymentClient;
+    private final TossPaymentProvider tossPaymentProvider;
 
     @Transactional
     public List<Payment> findStuckPaying(LocalDateTime before) {
@@ -37,19 +37,19 @@ public class PaymentRecoveryService {
 
     public void recoverPaying(Payment payment) {
         UUID paymentId = payment.getId();
-        TossPaymentStatusResponse toss;
+        StatusResult toss;
         try {
-            toss = tossPaymentClient.getByOrderId(paymentId.toString());
+            toss = tossPaymentProvider.getByOrderId(paymentId.toString());
         } catch (Exception e) {
             log.warn("[복구 실패] PAYING 상태 Toss 조회 실패. paymentId={}", paymentId, e);
             return;
         }
 
-        switch (toss.getStatus()) {
+        switch (toss.status()) {
             case "DONE" -> {
                 // toss O, payment status X
                 log.info("[복구] PAYING → SUCCESS. paymentId={}", paymentId);
-                paymentStatusService.succeedPayment(paymentId, toss.getPaymentKey());
+                paymentStatusService.succeedPayment(paymentId, toss.paymentKey());
             }
             case "ABORTED", "EXPIRED" -> {
                 // toss X, payment status X
@@ -62,15 +62,15 @@ public class PaymentRecoveryService {
 
     public void recoverRefunding(Payment payment) {
         UUID paymentId = payment.getId();
-        TossPaymentStatusResponse toss;
+        StatusResult toss;
         try {
-            toss = tossPaymentClient.getByPaymentKey(payment.getPaymentKey());
+            toss = tossPaymentProvider.getByPaymentKey(payment.getPaymentKey());
         } catch (Exception e) {
             log.warn("[복구 실패] REFUNDING 상태 Toss 조회 실패. paymentId={}", paymentId, e);
             return;
         }
 
-        switch (toss.getStatus()) {
+        switch (toss.status()) {
             case "CANCELED" -> {
                 // toss O, payment status X
                 log.info("[복구] REFUNDING → REFUNDED. paymentId={}", paymentId);
@@ -86,7 +86,7 @@ public class PaymentRecoveryService {
                 }
                 log.info("[복구] REFUNDING - Toss 미취소 상태, 취소 재시도. paymentId={}", paymentId);
                 try {
-                    tossPaymentClient.cancel(payment.getPaymentKey(), "고객 요청 취소");
+                    tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
                     paymentStatusService.refundPayment(paymentId);
                 } catch (Exception e) {
                     log.error("[복구 실패] 취소 재시도 실패. paymentId={}", paymentId, e);

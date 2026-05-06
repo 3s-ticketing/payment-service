@@ -14,8 +14,8 @@ import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.repository.PaymentRepository;
-import org.ticketing.payment.infrastructure.toss.TossPaymentClient;
-import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
+import org.ticketing.payment.domain.provider.TossPaymentProvider;
+import org.ticketing.payment.domain.provider.TossPaymentProvider.ConfirmResult;
 
 import java.util.UUID;
 
@@ -25,7 +25,7 @@ import java.util.UUID;
 public class PaymentService {
 
     private final PaymentRepository paymentRepository;
-    private final TossPaymentClient tossPaymentClient;
+    private final TossPaymentProvider tossPaymentProvider;
     private final PaymentStatusService paymentStatusService;
 
     @Transactional
@@ -76,7 +76,7 @@ public class PaymentService {
 
     public PaymentResult refundPayment(UUID reservationId) {
         Payment payment = paymentStatusService.startRefund(reservationId);
-        tossPaymentClient.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
         return paymentStatusService.refundPayment(payment.getId());
     }
 
@@ -91,9 +91,9 @@ public class PaymentService {
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
         paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
-        TossConfirmResponse tossResponse;
+        ConfirmResult tossResponse;
         try {
-            tossResponse = tossPaymentClient.confirm(
+            tossResponse = tossPaymentProvider.confirm(
                     command.getPaymentKey(),
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
@@ -103,6 +103,6 @@ public class PaymentService {
             throw new RuntimeException(e);
         }
 
-        return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.getPaymentKey());
+        return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.paymentKey());
     }
 }

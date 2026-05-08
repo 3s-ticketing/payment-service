@@ -13,6 +13,7 @@ import org.ticketing.payment.domain.exception.DuplicatePaymentException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
+import org.ticketing.payment.domain.model.PaymentStatus;
 import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.domain.provider.TossPaymentProvider;
 import org.ticketing.payment.domain.provider.TossPaymentProvider.ConfirmResult;
@@ -89,6 +90,13 @@ public class PaymentService {
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
+        // 이미 SUCCESS인 결제는 재처리 없이 그대로 반환
+        Payment existing = paymentRepository.findById(command.getPaymentId())
+                .orElseThrow(() -> new PaymentNotFoundException(command.getPaymentId()));
+        if (existing.getStatus() == PaymentStatus.SUCCESS) {
+            return PaymentResult.from(existing);
+        }
+
         paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
         ConfirmResult tossResponse;

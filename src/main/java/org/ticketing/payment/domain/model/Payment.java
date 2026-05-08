@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -39,6 +40,10 @@ public class Payment extends BaseEntity {
 
     @Column(name = "payment_key", length = 200)
     private String paymentKey;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", length = 15, nullable = false)

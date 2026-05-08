@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -34,6 +35,12 @@ public class PaymentControllerAdvice {
     @ExceptionHandler(DuplicatePaymentException.class)
     public ResponseEntity<Map<String, Object>> handleDuplicatePayment(DuplicatePaymentException ex) {
         return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    public ResponseEntity<Map<String, Object>> handleOptimisticLock(OptimisticLockingFailureException ex) {
+        log.warn("Optimistic lock conflict: {}", ex.getMessage());
+        return errorResponse(HttpStatus.CONFLICT, "Payment is already being processed. Please try again.");
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

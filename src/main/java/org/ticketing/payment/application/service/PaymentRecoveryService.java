@@ -53,10 +53,10 @@ public class PaymentRecoveryService {
             }
             case "ABORTED", "EXPIRED" -> {
                 // toss X, payment status X
-                log.info("[복구] PAYING → FAIL. paymentId={}, tossStatus={}", paymentId, toss.getStatus());
+                log.info("[복구] PAYING → FAIL. paymentId={}, tossStatus={}", paymentId, toss.status());
                 paymentStatusService.failPayment(paymentId);
             }
-            default -> log.debug("[복구 스킵] PAYING 아직 진행 중. paymentId={}, tossStatus={}", paymentId, toss.getStatus());
+            default -> log.debug("[복구 스킵] PAYING 아직 진행 중. paymentId={}, tossStatus={}", paymentId, toss.status());
         }
     }
 
@@ -92,7 +92,7 @@ public class PaymentRecoveryService {
                     log.error("[복구 실패] 취소 재시도 실패. paymentId={}", paymentId, e);
                 }
             }
-            default -> log.warn("[복구 스킵] REFUNDING 알 수 없는 상태. paymentId={}, tossStatus={}", paymentId, toss.getStatus());
+            default -> log.warn("[복구 스킵] REFUNDING 알 수 없는 상태. paymentId={}, tossStatus={}", paymentId, toss.status());
         }
     }
 }

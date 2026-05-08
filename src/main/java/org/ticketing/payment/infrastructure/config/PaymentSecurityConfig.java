@@ -34,10 +34,11 @@ public class PaymentSecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-                .addFilterBefore(loginFilter, UsernamePasswordAuthenticationFilter.class)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/payment-test.html").permitAll()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(loginFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling(e -> e
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler)

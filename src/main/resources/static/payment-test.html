@@ -37,10 +37,7 @@
     }
     button:hover { background: #1b6fe3; }
     button:disabled { background: #aaa; cursor: not-allowed; }
-    .btn-toss {
-      background: #3182f6;
-      margin-top: 8px;
-    }
+    .btn-toss { background: #3182f6; margin-top: 8px; }
     .btn-confirm { background: #00b386; }
     .btn-confirm:hover { background: #009970; }
     .btn-cancel { background: #e53935; }
@@ -66,6 +63,8 @@
       margin-left: 8px;
       vertical-align: middle;
     }
+    .badge.admin { background: #fce4ec; color: #c62828; }
+    .badge.internal { background: #f3e5f5; color: #6a1b9a; }
     .step { font-size: 12px; color: #999; margin-bottom: 6px; }
     hr { border: none; border-top: 1px solid #eee; margin: 6px 0 10px; }
     .notice {
@@ -77,11 +76,61 @@
       padding: 8px 10px;
       margin-top: 8px;
     }
+    .section-divider {
+      display: flex;
+      align-items: center;
+      margin: 24px 0 16px;
+      gap: 10px;
+    }
+    .section-divider span {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+    .section-divider.customer span { background: #e3f2fd; color: #1565c0; }
+    .section-divider.admin span { background: #fce4ec; color: #b71c1c; }
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #ddd;
+    }
   </style>
 </head>
 <body>
 
 <h2 style="font-size:20px;margin-bottom:20px;">🧪 결제 테스트</h2>
+
+<!-- 환경 설정 -->
+<div class="card">
+  <h2>환경 설정</h2>
+  <hr/>
+  <label>Base URL (호출 대상 서버)</label>
+  <input id="baseUrl" value="http://localhost:20006" placeholder="http://localhost:20006" />
+  <div style="display:flex;gap:8px;margin-top:8px;">
+    <button style="margin-top:0;flex:1;padding:6px;font-size:12px;background:#555;" onclick="setBase('http://localhost:20006')">payment-service (20006)</button>
+    <button style="margin-top:0;flex:1;padding:6px;font-size:12px;background:#555;" onclick="setBase('http://localhost:10000')">gateway (10000)</button>
+  </div>
+</div>
+
+<!-- Keycloak 토큰 발급 -->
+<div class="card">
+  <h2>Keycloak 토큰 발급</h2>
+  <hr/>
+  <label>Keycloak URL</label>
+  <input id="keycloakUrl" value="http://localhost:18080" />
+  <label>Username</label>
+  <input id="kcUsername" placeholder="user@example.com" />
+  <label>Password</label>
+  <input id="kcPassword" type="password" placeholder="password" />
+  <button onclick="fetchToken()" style="background:#7b1fa2;">토큰 발급</button>
+  <div id="tokenResult"></div>
+  <label style="margin-top:12px;">JWT Bearer Token (자동 입력 또는 직접 붙여넣기)</label>
+  <input id="jwtToken" placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." />
+  <div class="notice">⚠ userId는 JWT 토큰에서 서버가 추출합니다. 요청 body에 userId를 넣지 않습니다.</div>
+</div>
 
 <!-- Toss 클라이언트 키 설정 -->
 <div class="card">
@@ -92,35 +141,25 @@
   <div class="notice">⚠ 이 키는 브라우저에서만 사용되며 서버로 전송되지 않습니다.</div>
 </div>
 
-<!-- STEP 1 -->
+<!-- ===== CUSTOMER 섹션 ===== -->
+<div class="section-divider customer"><span>👤 Customer 권한</span></div>
+
+<!-- STEP 1+2 -->
 <div class="card">
   <div class="step">STEP 1</div>
-  <h2>결제 생성 <span class="badge">POST /api/payments</span></h2>
+  <h2>결제 생성 + Toss 결제창 <span class="badge">POST /api/payments</span></h2>
   <hr/>
-  <label>userId (UUID)</label>
-  <input id="userId" value="11111111-1111-1111-1111-111111111111" />
-  <label>reservationId (UUID) — Toss orderId로 사용됨</label>
+  <label>reservationId (UUID)</label>
   <input id="reservationId" value="22222222-2222-2222-2222-222222222222" />
-  <label>totalPrice (원)</label>
-  <input id="totalPrice" type="number" value="50000" />
-  <button onclick="createPayment()">1. 결제 생성</button>
+  <input id="paymentId" type="hidden" />
+  <button class="btn-toss" onclick="startPayment()">결제 생성 후 Toss 결제창 열기</button>
+  <div class="notice">결제 생성 응답 확인 후 Toss 결제창으로 이동합니다. 완료 후 이 페이지로 돌아와 paymentKey가 자동 입력됩니다.</div>
   <div id="createResult"></div>
 </div>
 
 <!-- STEP 2 -->
 <div class="card">
   <div class="step">STEP 2</div>
-  <h2>Toss 결제창 호출</h2>
-  <hr/>
-  <label>paymentId (STEP 1에서 자동 입력, 또는 직접 붙여넣기)</label>
-  <input id="paymentId" placeholder="결제 생성 후 자동 입력" />
-  <button class="btn-toss" onclick="openToss()">2. Toss 결제창 열기</button>
-  <div class="notice">결제 완료 후 이 페이지로 돌아와 paymentKey가 자동 입력됩니다.</div>
-</div>
-
-<!-- STEP 3 -->
-<div class="card">
-  <div class="step">STEP 3</div>
   <h2>결제 승인 확인 <span class="badge">POST /api/payments/success</span></h2>
   <hr/>
   <label>paymentKey (body)</label>
@@ -129,33 +168,147 @@
   <input id="confirmPaymentId" placeholder="결제 생성 후 자동 입력" />
   <label>totalPrice (body)</label>
   <input id="confirmPrice" type="number" placeholder="STEP 1에서 입력한 totalPrice" />
-  <button class="btn-confirm" onclick="confirmPayment()">3. 결제 승인 요청</button>
+  <button class="btn-confirm" onclick="confirmPayment()">2. 결제 승인 요청</button>
   <div id="confirmResult"></div>
 </div>
 
-<!-- 조회 / 취소 -->
+<!-- 내 결제 단건 조회 -->
 <div class="card">
-  <div class="step">조회 / 취소</div>
-  <h2>결제 단건 조회 <span class="badge">GET /api/payments/{id}</span></h2>
+  <div class="step">Customer 조회</div>
+  <h2>내 결제 단건 조회 <span class="badge">GET /api/payments/my/{paymentId}</span></h2>
   <hr/>
   <label>paymentId</label>
-  <input id="getPaymentId" placeholder="자동 입력" />
-  <button onclick="getPayment()">조회</button>
-  <div id="getResult"></div>
+  <input id="myGetPaymentId" placeholder="자동 입력" />
+  <button onclick="getMyPayment()">내 결제 조회</button>
+  <div id="myGetResult"></div>
 </div>
 
+<!-- 내 결제 목록 (reservationId 기준) -->
 <div class="card">
-  <div class="step">조회 / 취소</div>
-  <h2>결제 취소 <span class="badge">POST /api/payments/refund/reservations/{reservationId}</span></h2>
+  <div class="step">Customer 조회</div>
+  <h2>내 결제 목록 조회 <span class="badge">GET /api/payments/my/reservations/{reservationId}</span></h2>
+  <hr/>
+  <label>reservationId</label>
+  <input id="myReservationId" placeholder="자동 입력" />
+  <label>page (0부터)</label>
+  <input id="myReservationPage" type="number" value="0" />
+  <label>size</label>
+  <input id="myReservationSize" type="number" value="10" />
+  <button onclick="getMyPaymentsByReservation()">내 결제 목록 조회</button>
+  <div id="myReservationResult"></div>
+</div>
+
+<!-- 내 성공 결제 조회 (reservationId 기준) -->
+<div class="card">
+  <div class="step">Customer 조회</div>
+  <h2>내 성공 결제 조회 <span class="badge">GET /api/payments/my/reservations/{reservationId}/success</span></h2>
+  <hr/>
+  <label>reservationId</label>
+  <input id="mySuccessReservationId" placeholder="자동 입력" />
+  <button onclick="getMySuccessPayment()">내 성공 결제 조회</button>
+  <div id="mySuccessResult"></div>
+</div>
+
+<!-- ===== ADMIN 섹션 ===== -->
+<div class="section-divider admin"><span>🔑 Admin 권한</span></div>
+
+<!-- 결제 단건 조회 (Admin) -->
+<div class="card">
+  <div class="step">Admin 조회</div>
+  <h2>결제 단건 조회 <span class="badge admin">GET /api/payments/{paymentId}</span></h2>
   <hr/>
   <label>paymentId</label>
-  <input id="cancelReservationId" placeholder="자동 입력" />
-  <button class="btn-cancel" onclick="cancelPayment()">결제 취소</button>
-  <div id="cancelResult"></div>
+  <input id="adminGetPaymentId" placeholder="자동 입력" />
+  <button onclick="adminGetPayment()">조회</button>
+  <div id="adminGetResult"></div>
+</div>
+
+<!-- 전체 결제 목록 조회 (Admin) -->
+<div class="card">
+  <div class="step">Admin 조회</div>
+  <h2>전체 결제 목록 조회 <span class="badge admin">GET /api/payments</span></h2>
+  <hr/>
+  <label>page (0부터)</label>
+  <input id="adminListPage" type="number" value="0" />
+  <label>size</label>
+  <input id="adminListSize" type="number" value="10" />
+  <button onclick="adminGetPayments()">전체 조회</button>
+  <div id="adminListResult"></div>
+</div>
+
+<!-- reservationId에 따른 결제 목록 조회 (Admin) -->
+<div class="card">
+  <div class="step">Admin 조회</div>
+  <h2>예약별 결제 목록 조회 <span class="badge admin">GET /api/payments/reservations/{reservationId}</span></h2>
+  <hr/>
+  <label>reservationId</label>
+  <input id="adminReservationId" placeholder="자동 입력" />
+  <label>page (0부터)</label>
+  <input id="adminReservationPage" type="number" value="0" />
+  <label>size</label>
+  <input id="adminReservationSize" type="number" value="10" />
+  <button onclick="adminGetPaymentsByReservation()">예약별 결제 목록 조회</button>
+  <div id="adminReservationResult"></div>
+</div>
+
+<!-- 결제 환불 (Admin) -->
+<div class="card">
+  <div class="step">Admin 환불</div>
+  <h2>결제 환불 <span class="badge admin">POST /api/payments/refund/reservations/{reservationId}</span></h2>
+  <hr/>
+  <label>reservationId</label>
+  <input id="refundReservationId" placeholder="자동 입력" />
+  <button class="btn-cancel" onclick="refundPayment()">결제 환불</button>
+  <div id="refundResult"></div>
 </div>
 
 <script>
-  const BASE = '';
+  async function fetchToken() {
+    const keycloakUrl = (document.getElementById('keycloakUrl').value || '').replace(/\/$/, '');
+    const username = document.getElementById('kcUsername').value.trim();
+    const password = document.getElementById('kcPassword').value;
+
+    if (!username || !password) { show('tokenResult', { error: 'username과 password를 입력하세요.' }, 'err'); return; }
+
+    const tokenUrl = `${keycloakUrl}/realms/ticketing/protocol/openid-connect/token`;
+    const body = new URLSearchParams({
+      grant_type: 'password',
+      client_id: 'ticketing-client',
+      username,
+      password,
+    });
+
+    let res, text;
+    try {
+      res = await fetch(tokenUrl, { method: 'POST', body, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+      text = await res.text();
+    } catch (e) {
+      show('tokenResult', { error: '네트워크 오류', message: e.message, url: tokenUrl }, 'err'); return;
+    }
+
+    let json;
+    try { json = JSON.parse(text); } catch { show('tokenResult', { error: text }, 'err'); return; }
+
+    if (!res.ok) { show('tokenResult', json, 'err'); return; }
+
+    document.getElementById('jwtToken').value = json.access_token;
+    show('tokenResult', { message: '토큰 발급 성공. JWT 필드에 자동 입력됐습니다.', expires_in: json.expires_in }, 'ok');
+  }
+
+  function getBase() {
+    return (document.getElementById('baseUrl').value || '').replace(/\/$/, '');
+  }
+
+  function setBase(url) {
+    document.getElementById('baseUrl').value = url;
+  }
+
+  function getAuthHeaders() {
+    const token = document.getElementById('jwtToken').value.trim();
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    return headers;
+  }
 
   function show(elId, data, type = 'ok') {
     const el = document.getElementById(elId);
@@ -164,60 +317,63 @@
   }
 
   async function request(method, path, body) {
-    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    const opts = { method, headers: getAuthHeaders() };
     if (body) opts.body = JSON.stringify(body);
-    const res = await fetch(BASE + path, opts);
-    const text = await res.text();
+    let res, text;
+    try {
+      res = await fetch(getBase() + path, opts);
+      text = await res.text();
+    } catch (e) {
+      return { ok: false, data: { error: '네트워크 오류', message: e.message, url: getBase() + path } };
+    }
     try { return { ok: res.ok, data: JSON.parse(text) }; }
     catch { return { ok: res.ok, data: text }; }
   }
 
-  async function createPayment() {
-    const userId = document.getElementById('userId').value.trim();
-    const reservationId = document.getElementById('reservationId').value.trim();
-    const totalPrice = Number(document.getElementById('totalPrice').value);
-    if (!userId || !reservationId || !totalPrice) {
-      show('createResult', { error: '모든 필드를 입력하세요.' }, 'err'); return;
-    }
-    const { ok, data } = await request('POST', '/api/payments', { userId, reservationId, totalPrice });
-    show('createResult', data, ok ? 'ok' : 'err');
-    if (ok && data.id) {
-      document.getElementById('paymentId').value = data.id;
-      document.getElementById('getPaymentId').value = data.id;
-      document.getElementById('cancelReservationId').value = reservationId;
-      document.getElementById('confirmPaymentId').value = data.id;
-      document.getElementById('confirmPrice').value = totalPrice;
-      // Toss 리다이렉트 후 복원용
-      localStorage.setItem('toss_paymentId', data.id);
-      localStorage.setItem('toss_totalPrice', String(totalPrice));
-    }
-  }
+  // ===== Customer =====
 
-  function openToss() {
+  async function startPayment() {
+    const reservationId = document.getElementById('reservationId').value.trim();
     const clientKey = document.getElementById('clientKey').value.trim();
-    const paymentId = document.getElementById('paymentId').value.trim();
-    const reservationId = document.getElementById('reservationId').value.trim();
-    const totalPrice = Number(document.getElementById('totalPrice').value);
 
-    if (!clientKey) { alert('Toss 클라이언트 키를 입력하세요.'); return; }
-    // 입력값 없으면 sessionStorage 폴백
-    const resolvedPaymentId = paymentId || localStorage.getItem('toss_paymentId') || '';
-    if (!resolvedPaymentId) { alert('먼저 결제를 생성하세요. (STEP 1)'); return; }
-    document.getElementById('paymentId').value = resolvedPaymentId;
-    if (!totalPrice) { alert('totalPrice를 확인하세요.'); return; }
+    if (!reservationId) { show('createResult', { error: 'reservationId를 입력하세요.' }, 'err'); return; }
+    if (!clientKey) { show('createResult', { error: 'Toss 클라이언트 키를 위에서 먼저 입력하세요.' }, 'err'); return; }
 
-    const tossPayments = TossPayments(clientKey);
-    const successUrl = window.location.href.split('?')[0] + '?success=1';
-    const failUrl    = window.location.href.split('?')[0] + '?fail=1';
+    const { ok, data } = await request('POST', '/api/payments', { reservationId });
+    show('createResult', data, ok ? 'ok' : 'err');
+    if (!ok) return;
+    if (!data.id) { show('createResult', { ...data, _warn: '결제 id가 없습니다. 응답을 확인하세요.' }, 'err'); return; }
 
-    tossPayments.requestPayment('카드', {
-      amount: totalPrice,
-      orderId: resolvedPaymentId,
-      orderName: '티켓 결제 테스트',
-      successUrl,
-      failUrl,
-      customerName: '테스트유저',
-    });
+    const paymentId = data.id;
+    const totalPrice = data.totalPrice;
+
+    document.getElementById('paymentId').value = paymentId;
+    document.getElementById('confirmPaymentId').value = paymentId;
+    document.getElementById('confirmPrice').value = totalPrice;
+    document.getElementById('myGetPaymentId').value = paymentId;
+    document.getElementById('adminGetPaymentId').value = paymentId;
+    document.getElementById('myReservationId').value = reservationId;
+    document.getElementById('mySuccessReservationId').value = reservationId;
+    document.getElementById('adminReservationId').value = reservationId;
+    document.getElementById('refundReservationId').value = reservationId;
+    localStorage.setItem('toss_paymentId', paymentId);
+    localStorage.setItem('toss_totalPrice', String(totalPrice));
+
+    try {
+      const tossPayments = TossPayments(clientKey);
+      const successUrl = window.location.href.split('?')[0] + '?success=1';
+      const failUrl    = window.location.href.split('?')[0] + '?fail=1';
+      tossPayments.requestPayment('카드', {
+        amount: totalPrice,
+        orderId: paymentId,
+        orderName: '티켓 결제 테스트',
+        successUrl,
+        failUrl,
+        customerName: '테스트유저',
+      });
+    } catch (e) {
+      show('createResult', { ...data, _tossError: e.message }, 'err');
+    }
   }
 
   async function confirmPayment() {
@@ -236,26 +392,67 @@
     show('confirmResult', data, ok ? 'ok' : 'err');
   }
 
-  async function getPayment() {
-    const paymentId = document.getElementById('getPaymentId').value.trim();
-    if (!paymentId) { show('getResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
-    const { ok, data } = await request('GET', `/api/payments/${paymentId}`);
-    show('getResult', data, ok ? 'ok' : 'err');
+  async function getMyPayment() {
+    const paymentId = document.getElementById('myGetPaymentId').value.trim();
+    if (!paymentId) { show('myGetResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
+    const { ok, data } = await request('GET', `/api/payments/my/${paymentId}`);
+    show('myGetResult', data, ok ? 'ok' : 'err');
   }
 
-  async function cancelPayment() {
-    const reservationId = document.getElementById('cancelReservationId').value.trim();
-    if (!reservationId) { show('cancelResult', { error: 'reservationId 입력하세요.' }, 'err'); return; }
-    if (!confirm('정말 취소하시겠어요?')) return;
+  async function getMyPaymentsByReservation() {
+    const reservationId = document.getElementById('myReservationId').value.trim();
+    if (!reservationId) { show('myReservationResult', { error: 'reservationId를 입력하세요.' }, 'err'); return; }
+    const page = document.getElementById('myReservationPage').value || 0;
+    const size = document.getElementById('myReservationSize').value || 10;
+    const { ok, data } = await request('GET', `/api/payments/my/reservations/${reservationId}?page=${page}&size=${size}`);
+    show('myReservationResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function getMySuccessPayment() {
+    const reservationId = document.getElementById('mySuccessReservationId').value.trim();
+    if (!reservationId) { show('mySuccessResult', { error: 'reservationId를 입력하세요.' }, 'err'); return; }
+    const { ok, data } = await request('GET', `/api/payments/my/reservations/${reservationId}/success`);
+    show('mySuccessResult', data, ok ? 'ok' : 'err');
+  }
+
+  // ===== Admin =====
+
+  async function adminGetPayment() {
+    const paymentId = document.getElementById('adminGetPaymentId').value.trim();
+    if (!paymentId) { show('adminGetResult', { error: 'paymentId를 입력하세요.' }, 'err'); return; }
+    const { ok, data } = await request('GET', `/api/payments/${paymentId}`);
+    show('adminGetResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function adminGetPayments() {
+    const page = document.getElementById('adminListPage').value || 0;
+    const size = document.getElementById('adminListSize').value || 10;
+    const { ok, data } = await request('GET', `/api/payments?page=${page}&size=${size}`);
+    show('adminListResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function adminGetPaymentsByReservation() {
+    const reservationId = document.getElementById('adminReservationId').value.trim();
+    if (!reservationId) { show('adminReservationResult', { error: 'reservationId를 입력하세요.' }, 'err'); return; }
+    const page = document.getElementById('adminReservationPage').value || 0;
+    const size = document.getElementById('adminReservationSize').value || 10;
+    const { ok, data } = await request('GET', `/api/payments/reservations/${reservationId}?page=${page}&size=${size}`);
+    show('adminReservationResult', data, ok ? 'ok' : 'err');
+  }
+
+  async function refundPayment() {
+    const reservationId = document.getElementById('refundReservationId').value.trim();
+    if (!reservationId) { show('refundResult', { error: 'reservationId를 입력하세요.' }, 'err'); return; }
+    if (!confirm('정말 환불하시겠어요?')) return;
     const { ok, data } = await request('POST', `/api/payments/refund/reservations/${reservationId}`);
-    show('cancelResult', data, ok ? 'ok' : 'err');
+    show('refundResult', data, ok ? 'ok' : 'err');
   }
 
   // Toss 리다이렉트 후 쿼리 파라미터 자동 파싱
   (function handleRedirect() {
     const params = new URLSearchParams(window.location.search);
     const paymentKey = params.get('paymentKey');
-    const orderId    = params.get('orderId');    // = payment.id
+    const orderId    = params.get('orderId');
     const amount     = params.get('amount');
     const fail       = params.get('fail');
 
@@ -268,21 +465,20 @@
     }
 
     if (paymentKey && orderId && amount) {
-      const paymentId  = orderId; // Toss orderId = payment.id
+      const paymentId  = orderId;
       const totalPrice = localStorage.getItem('toss_totalPrice') || amount;
 
-      document.getElementById('paymentKey').value    = paymentKey;
+      document.getElementById('paymentKey').value       = paymentKey;
       document.getElementById('confirmPaymentId').value = paymentId;
-      document.getElementById('confirmPrice').value  = totalPrice;
-      document.getElementById('paymentId').value     = paymentId;
-      document.getElementById('getPaymentId').value  = paymentId;
-      document.getElementById('cancelReservationId').value = document.getElementById('reservationId').value;
+      document.getElementById('confirmPrice').value     = totalPrice;
+      document.getElementById('paymentId').value        = paymentId;
+      document.getElementById('myGetPaymentId').value   = paymentId;
+      document.getElementById('adminGetPaymentId').value = paymentId;
 
       show('confirmResult',
         { message: 'Toss 결제 완료! paymentKey가 자동 입력됐습니다. STEP 3에서 승인 요청하세요.', paymentKey },
         'info');
 
-      // URL 클린업
       history.replaceState(null, '', window.location.pathname);
     }
   })();

@@ -1,12 +1,14 @@
 package org.ticketing.payment.infrastructure.toss;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.ticketing.payment.domain.provider.TossPaymentProvider;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
 import org.ticketing.payment.infrastructure.toss.dto.TossPaymentStatusResponse;
 
 @Component
+@Profile("!loadtest")
 @RequiredArgsConstructor
 public class TossPaymentProviderImpl implements TossPaymentProvider {
 

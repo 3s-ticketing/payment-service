@@ -14,16 +14,13 @@ import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 public class CreatePaymentRequestDto {
 
     @NotNull
-    private UUID userId;
-
-    @NotNull
     private UUID reservationId;
 
     @NotNull
     @Positive
     private Long totalPrice;
 
-    public CreatePaymentCommand toCommand() {
+    public CreatePaymentCommand toCommand(UUID userId) {
         return new CreatePaymentCommand(userId, reservationId, totalPrice);
     }
 }

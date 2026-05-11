@@ -54,6 +54,13 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
+    public PaymentResult getMyPayment(UUID userId, UUID paymentId) {
+        Payment payment = paymentRepository.findByIdAndUserId(paymentId, userId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional(readOnly = true)
     public Page<PaymentResult> getPayments(Pageable pageable) {
         return paymentRepository.findAll(pageable).map(PaymentResult::from);
     }
@@ -64,8 +71,20 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
+    public Page<PaymentResult> getMyPaymentsByReservationId(UUID userId, UUID reservationId, Pageable pageable) {
+        return paymentRepository.findByReservationIdAndUserId(reservationId, userId, pageable).map(PaymentResult::from);
+    }
+
+    @Transactional(readOnly = true)
     public PaymentResult getSuccessPaymentByReservationId(UUID reservationId) {
         Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
+                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional(readOnly = true)
+    public PaymentResult getMySuccessPaymentByReservationId(UUID userId, UUID reservationId) {
+        Payment payment = paymentRepository.findSuccessPaymentByReservationIdAndUserId(reservationId, userId)
                 .orElseThrow(() -> new PaymentNotFoundException(reservationId));
         return PaymentResult.from(payment);
     }

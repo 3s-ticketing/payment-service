@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.ticketing.payment.application.service.PaymentService;
@@ -29,28 +30,35 @@ public class PaymentController {
     // 결제 시도 생성 [Customer]
     // (사용자가 결제 요청 버튼 누를 때)
     @PostMapping
-    public PaymentResponseDto createPayment(@RequestBody @Valid CreatePaymentRequestDto request) {
-        return PaymentResponseDto.from(paymentService.createPayment(request.toCommand()));
+    public PaymentResponseDto createPayment(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestBody @Valid CreatePaymentRequestDto request) {
+        return PaymentResponseDto.from(paymentService.createPayment(request.toCommand(userId)));
     }
 
     // paymentId에 따른 결제 정보 조회 [Customer]
     @GetMapping("/my/{paymentId}")
-    public PaymentResponseDto getMyPayment(@PathVariable @NotNull UUID paymentId) {
-        return PaymentResponseDto.from(paymentService.getPayment(paymentId));
+    public PaymentResponseDto getMyPayment(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable @NotNull UUID paymentId) {
+        return PaymentResponseDto.from(paymentService.getMyPayment(userId, paymentId));
     }
 
     // reservationId에 따른 결제 정보 조회 [Customer]
     @GetMapping("/my/reservations/{reservationId}")
     public Page<PaymentResponseDto> getMyPaymentsByReservationId(
+            @RequestHeader("X-User-Id") UUID userId,
             @PathVariable @NotNull UUID reservationId,
             @PageableDefault(size = 10, sort = "createdAt") Pageable pageable) {
-        return paymentService.getPaymentsByReservationId(reservationId, pageable).map(PaymentResponseDto::from);
+        return paymentService.getMyPaymentsByReservationId(userId, reservationId, pageable).map(PaymentResponseDto::from);
     }
 
     // reservationId에 따른 성공 결제 정보 조회 [Customer]
     @GetMapping("/my/reservations/{reservationId}/success")
-    public PaymentResponseDto getMySuccessPaymentByReservationId(@PathVariable @NotNull UUID reservationId) {
-        return PaymentResponseDto.from(paymentService.getSuccessPaymentByReservationId(reservationId));
+    public PaymentResponseDto getMySuccessPaymentByReservationId(
+            @RequestHeader("X-User-Id") UUID userId,
+            @PathVariable @NotNull UUID reservationId) {
+        return PaymentResponseDto.from(paymentService.getMySuccessPaymentByReservationId(userId, reservationId));
     }
 
     // paymentId에 따른 결제 정보 조회 [Admin]

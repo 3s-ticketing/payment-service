@@ -48,6 +48,11 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    runtimeOnly 'org.springframework.boot:spring-boot-starter-actuator'
+    runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'io.micrometer:micrometer-tracing-bridge-brave'
+    runtimeOnly 'io.zipkin.reporter2:zipkin-reporter-brave'
+
     runtimeOnly 'org.postgresql:postgresql'
 
     compileOnly 'org.projectlombok:lombok'

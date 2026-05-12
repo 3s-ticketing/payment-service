@@ -111,7 +111,7 @@ public class PaymentService {
         Payment payment = paymentStatusService.startRefund(reservationId);
         try {
             tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
-        } catch (PaymentException e) {
+        } catch (RuntimeException e) {
             paymentStatusService.revertRefund(payment.getId());
             throw e;
         }
@@ -143,7 +143,7 @@ public class PaymentService {
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
-        } catch (PaymentException e) {
+        } catch (RuntimeException e) {
             paymentStatusService.failPayment(command.getPaymentId());
             throw e;
         }

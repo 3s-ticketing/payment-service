@@ -27,7 +27,12 @@ public class PaymentControllerAdvice {
 
     @ExceptionHandler(PaymentException.class)
     public ResponseEntity<Map<String, Object>> handlePaymentException(PaymentException ex) {
-        return errorResponse(ex.getStatus(), ex.getMessage());
+        if (ex.getStatus().is5xxServerError()) {
+            log.error("Payment error [{}]: {}", ex.getCode(), ex.getMessage());
+        } else {
+            log.warn("Payment error [{}]: {}", ex.getCode(), ex.getMessage());
+        }
+        return errorResponse(ex.getStatus(), ex.getCode().name(), ex.getMessage());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -75,9 +80,14 @@ public class PaymentControllerAdvice {
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String message) {
+        return errorResponse(status, null, message);
+    }
+
+    private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String code, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", status.value());
         body.put("error", status.toString());
+        if (code != null) body.put("code", code);
         body.put("message", message);
         body.put("timestamp", Instant.now().toString());
         return ResponseEntity.status(status).body(body);

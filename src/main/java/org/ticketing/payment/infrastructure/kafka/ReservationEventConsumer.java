@@ -7,7 +7,8 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 import org.ticketing.payment.application.service.PaymentService;
-import org.ticketing.payment.domain.exception.TossPaymentCancelException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent;
 
 @Slf4j
@@ -36,9 +37,12 @@ public class ReservationEventConsumer {
 
         try {
             paymentService.handleReservationCanceled(event.reservationId(), event.cancelReason());
-        } catch (TossPaymentCancelException e) {
-            log.error("Toss 취소 API 실패, 재시도 대상: reservationId={}", event.reservationId(), e);
-            throw e;
+        } catch (PaymentException e) {
+            if (e.getCode() == PaymentErrorCode.TOSS_CANCEL_FAILED) {
+                log.error("Toss 취소 API 실패, 재시도 대상: reservationId={}", event.reservationId(), e);
+                throw e;
+            }
+            log.error("Failed to handle reservation.canceled: reservationId={}", event.reservationId(), e);
         } catch (Exception e) {
             log.error("Failed to handle reservation.canceled: reservationId={}", event.reservationId(), e);
         }

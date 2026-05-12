@@ -6,8 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
-import org.ticketing.payment.domain.exception.TossPaymentCancelException;
-import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.infrastructure.toss.dto.TossCancelRequest;
 import org.ticketing.payment.infrastructure.toss.dto.TossCancelResponse;
 import org.ticketing.payment.infrastructure.toss.dto.TossConfirmRequest;
@@ -37,7 +37,8 @@ public class TossPaymentClient {
                         status -> !status.is2xxSuccessful(),
                         (request, response) -> {
                             String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
-                            throw new TossPaymentConfirmException(response.getStatusCode().value(), body);
+                            throw new PaymentException(PaymentErrorCode.TOSS_CONFIRM_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
                         }
                 )
                 .body(TossConfirmResponse.class);
@@ -60,7 +61,8 @@ public class TossPaymentClient {
                         status -> !status.is2xxSuccessful(),
                         (request, response) -> {
                             String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
-                            throw new TossPaymentCancelException(response.getStatusCode().value(), body);
+                            throw new PaymentException(PaymentErrorCode.TOSS_CANCEL_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
                         }
                 )
                 .body(TossCancelResponse.class);

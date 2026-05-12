@@ -15,8 +15,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import java.util.UUID;
 import org.ticketing.common.domain.BaseEntity;
-import org.ticketing.payment.domain.exception.InvalidPaymentStatusTransitionException;
-import org.ticketing.payment.domain.exception.PaymentAlreadyTerminatedException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -67,11 +67,12 @@ public class Payment extends BaseEntity {
 
     private void updateStatus(PaymentStatus next) {
         if (this.status.isTerminal()) {
-            throw new PaymentAlreadyTerminatedException(this.status);
+            throw new PaymentException(PaymentErrorCode.ALREADY_TERMINATED, String.valueOf(this.status));
         }
 
         if (!this.status.canTransitionTo(next)) {
-            throw new InvalidPaymentStatusTransitionException(this.status, next);
+            throw new PaymentException(PaymentErrorCode.INVALID_STATUS_TRANSITION,
+                    this.status + "에서 " + next + "로 변경될 수 없습니다");
         }
 
         this.status = next;

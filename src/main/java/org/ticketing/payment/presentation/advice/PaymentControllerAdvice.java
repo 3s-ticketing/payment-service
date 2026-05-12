@@ -1,5 +1,6 @@
 package org.ticketing.payment.presentation.advice;
 
+import feign.FeignException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -11,10 +12,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.ticketing.payment.domain.exception.DuplicatePaymentException;
 import org.ticketing.payment.domain.exception.InvalidPaymentStatusTransitionException;
+import org.ticketing.payment.domain.exception.InvalidReservationStateException;
 import org.ticketing.payment.domain.exception.PaymentAlreadyTerminatedException;
 import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.exception.PaymentReservationMismatchException;
+import org.ticketing.payment.domain.exception.PaymentUserMismatchException;
 import org.ticketing.payment.domain.exception.TossPaymentCancelException;
 import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
 
@@ -71,6 +74,28 @@ public class PaymentControllerAdvice {
     @ExceptionHandler(PaymentReservationMismatchException.class)
     public ResponseEntity<Map<String, Object>> handleReservationMismatch(PaymentReservationMismatchException ex) {
         return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(InvalidReservationStateException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidReservationState(InvalidReservationStateException ex) {
+        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(PaymentUserMismatchException.class)
+    public ResponseEntity<Map<String, Object>> handleUserMismatch(PaymentUserMismatchException ex) {
+        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    @ExceptionHandler(FeignException.NotFound.class)
+    public ResponseEntity<Map<String, Object>> handleFeignNotFound(FeignException.NotFound ex) {
+        log.warn("Reservation not found via Feign: {}", ex.getMessage());
+        return errorResponse(HttpStatus.NOT_FOUND, "예약 정보를 찾을 수 없습니다.");
+    }
+
+    @ExceptionHandler(FeignException.class)
+    public ResponseEntity<Map<String, Object>> handleFeignException(FeignException ex) {
+        log.error("Feign call failed: status={}, message={}", ex.status(), ex.getMessage());
+        return errorResponse(HttpStatus.BAD_GATEWAY, "예약 서비스 호출에 실패했습니다.");
     }
 
     @ExceptionHandler(TossPaymentConfirmException.class)

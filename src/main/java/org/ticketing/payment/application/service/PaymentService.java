@@ -13,6 +13,8 @@ import org.ticketing.payment.domain.exception.DuplicatePaymentException;
 import org.ticketing.payment.domain.exception.InvalidReservationStateException;
 import org.ticketing.payment.domain.exception.PaymentNotFoundException;
 import org.ticketing.payment.domain.exception.PaymentUserMismatchException;
+import org.ticketing.payment.domain.exception.TossPaymentCancelException;
+import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
 import org.ticketing.payment.domain.client.ReservationClient;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
@@ -108,7 +110,12 @@ public class PaymentService {
 
     public PaymentResult refundPayment(UUID reservationId) {
         Payment payment = paymentStatusService.startRefund(reservationId);
-        tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        try {
+            tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        } catch (TossPaymentCancelException e) {
+            paymentStatusService.revertRefund(payment.getId());
+            throw e;
+        }
         return paymentStatusService.refundPayment(payment.getId());
     }
 
@@ -137,9 +144,9 @@ public class PaymentService {
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
-        } catch (Exception e) {
+        } catch (TossPaymentConfirmException e) {
             paymentStatusService.failPayment(command.getPaymentId());
-            throw new RuntimeException(e);
+            throw e;
         }
 
         return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.paymentKey());

@@ -68,6 +68,15 @@ public class PaymentStatusService {
     }
 
     @Transactional
+    public void revertRefund(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        PaymentStatus fromStatus = payment.getStatus();
+        payment.revertRefund();
+        paymentLogRepository.save(PaymentLog.create(payment.getId(), fromStatus, payment.getStatus()));
+    }
+
+    @Transactional
     public PaymentResult refundPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
                 .orElseThrow(() -> new PaymentNotFoundException(paymentId));

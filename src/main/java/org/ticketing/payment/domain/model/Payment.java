@@ -94,6 +94,10 @@ public class Payment extends BaseEntity {
         updateStatus(PaymentStatus.REFUNDING);
     }
 
+    public void revertRefund() {
+        updateStatus(PaymentStatus.SUCCESS);
+    }
+
     public void refund() {
         updateStatus(PaymentStatus.REFUNDED);
     }

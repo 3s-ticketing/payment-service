@@ -4,8 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.ticketing.payment.domain.exception.InvalidPaymentStatusTransitionException;
-import org.ticketing.payment.domain.exception.PaymentAlreadyTerminatedException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 
 import java.util.UUID;
 
@@ -59,10 +59,12 @@ class PaymentTest {
         }
 
         @Test
-        void PAYING_상태에서_재호출시_InvalidPaymentStatusTransitionException() {
+        void PAYING_상태에서_재호출시_INVALID_STATUS_TRANSITION() {
             payment.start();
             assertThatThrownBy(payment::start)
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
     }
 
@@ -80,18 +82,22 @@ class PaymentTest {
         }
 
         @Test
-        void INIT_상태에서_직접_succeed_호출시_InvalidPaymentStatusTransitionException() {
+        void INIT_상태에서_직접_succeed_호출시_INVALID_STATUS_TRANSITION() {
             assertThatThrownBy(() -> payment.succeed("key"))
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
 
         @Test
-        void 이미_SUCCESS인_상태에서_succeed_호출시_PaymentAlreadyTerminatedException은_아니다() {
+        void 이미_SUCCESS인_상태에서_succeed_호출시_INVALID_STATUS_TRANSITION() {
             payment.start();
             payment.succeed("key");
 
             assertThatThrownBy(() -> payment.succeed("key2"))
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
     }
 
@@ -107,22 +113,30 @@ class PaymentTest {
         }
 
         @Test
-        void INIT에서_fail_호출시_InvalidPaymentStatusTransitionException() {
+        void INIT에서_fail_호출시_INVALID_STATUS_TRANSITION() {
             assertThatThrownBy(payment::fail)
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
 
         @Test
-        void FAIL_이후_모든_전이_시도시_PaymentAlreadyTerminatedException() {
+        void FAIL_이후_모든_전이_시도시_ALREADY_TERMINATED() {
             payment.start();
             payment.fail();
 
             assertThatThrownBy(payment::start)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
             assertThatThrownBy(() -> payment.succeed("key"))
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
             assertThatThrownBy(payment::fail)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
         }
     }
 
@@ -139,9 +153,11 @@ class PaymentTest {
         }
 
         @Test
-        void INIT에서_startRefund_호출시_InvalidPaymentStatusTransitionException() {
+        void INIT에서_startRefund_호출시_INVALID_STATUS_TRANSITION() {
             assertThatThrownBy(payment::startRefund)
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
     }
 
@@ -159,22 +175,28 @@ class PaymentTest {
         }
 
         @Test
-        void REFUNDED_이후_모든_전이_시도시_PaymentAlreadyTerminatedException() {
+        void REFUNDED_이후_모든_전이_시도시_ALREADY_TERMINATED() {
             payment.start();
             payment.succeed("key");
             payment.startRefund();
             payment.refund();
 
             assertThatThrownBy(payment::refund)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
             assertThatThrownBy(payment::startRefund)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
         }
 
         @Test
-        void INIT에서_refund_직접_호출시_InvalidPaymentStatusTransitionException() {
+        void INIT에서_refund_직접_호출시_INVALID_STATUS_TRANSITION() {
             assertThatThrownBy(payment::refund)
-                    .isInstanceOf(InvalidPaymentStatusTransitionException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
         }
     }
 
@@ -196,15 +218,21 @@ class PaymentTest {
         }
 
         @Test
-        void EXPIRED_이후_모든_전이_시도시_PaymentAlreadyTerminatedException() {
+        void EXPIRED_이후_모든_전이_시도시_ALREADY_TERMINATED() {
             payment.expire();
 
             assertThatThrownBy(payment::start)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
             assertThatThrownBy(() -> payment.succeed("key"))
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
             assertThatThrownBy(payment::expire)
-                    .isInstanceOf(PaymentAlreadyTerminatedException.class);
+                    .isInstanceOf(PaymentException.class)
+                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
+                            .isEqualTo(PaymentErrorCode.ALREADY_TERMINATED));
         }
     }
 

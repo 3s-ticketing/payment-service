@@ -9,10 +9,8 @@ import org.ticketing.payment.application.dto.command.ConfirmPaymentCommand;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import lombok.extern.slf4j.Slf4j;
-import org.ticketing.payment.domain.exception.DuplicatePaymentException;
-import org.ticketing.payment.domain.exception.InvalidReservationStateException;
-import org.ticketing.payment.domain.exception.PaymentNotFoundException;
-import org.ticketing.payment.domain.exception.PaymentUserMismatchException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.domain.client.ReservationClient;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
@@ -40,14 +38,17 @@ public class PaymentService {
                 reservationClient.getReservationDetail(command.getReservationId());
 
         if (!reservation.isValid()) {
-            throw new InvalidReservationStateException(command.getReservationId());
+            throw new PaymentException(PaymentErrorCode.INVALID_RESERVATION_STATE,
+                    "reservationId=" + command.getReservationId());
         }
         if (!reservation.userId().equals(command.getUserId())) {
-            throw new PaymentUserMismatchException(reservation.userId(), command.getUserId());
+            throw new PaymentException(PaymentErrorCode.USER_MISMATCH,
+                    "예약의 userId=" + reservation.userId() + ", 요청 userId=" + command.getUserId());
         }
 
         if (paymentRepository.existsActivePayment(command.getReservationId())) {
-            throw new DuplicatePaymentException(command.getReservationId());
+            throw new PaymentException(PaymentErrorCode.DUPLICATE_PAYMENT,
+                    "reservationId=" + command.getReservationId());
         }
 
         Payment payment = Payment.create(
@@ -61,14 +62,14 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentResult getPayment(UUID paymentId) {
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
         return PaymentResult.from(payment);
     }
 
     @Transactional(readOnly = true)
     public PaymentResult getMyPayment(UUID userId, UUID paymentId) {
         Payment payment = paymentRepository.findByIdAndUserId(paymentId, userId)
-                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
         return PaymentResult.from(payment);
     }
 
@@ -90,14 +91,14 @@ public class PaymentService {
     @Transactional(readOnly = true)
     public PaymentResult getSuccessPaymentByReservationId(UUID reservationId) {
         Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, "reservationId=" + reservationId));
         return PaymentResult.from(payment);
     }
 
     @Transactional(readOnly = true)
     public PaymentResult getMySuccessPaymentByReservationId(UUID userId, UUID reservationId) {
         Payment payment = paymentRepository.findSuccessPaymentByReservationIdAndUserId(reservationId, userId)
-                .orElseThrow(() -> new PaymentNotFoundException(reservationId));
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, "reservationId=" + reservationId));
         return PaymentResult.from(payment);
     }
 
@@ -108,7 +109,12 @@ public class PaymentService {
 
     public PaymentResult refundPayment(UUID reservationId) {
         Payment payment = paymentStatusService.startRefund(reservationId);
-        tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        try {
+            tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
+        } catch (RuntimeException e) {
+            paymentStatusService.revertRefund(payment.getId());
+            throw e;
+        }
         return paymentStatusService.refundPayment(payment.getId());
     }
 
@@ -123,7 +129,7 @@ public class PaymentService {
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
         // 이미 SUCCESS인 결제는 재처리 없이 그대로 반환
         Payment existing = paymentRepository.findById(command.getPaymentId())
-                .orElseThrow(() -> new PaymentNotFoundException(command.getPaymentId()));
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, command.getPaymentId().toString()));
         if (existing.getStatus() == PaymentStatus.SUCCESS) {
             return PaymentResult.from(existing);
         }
@@ -137,9 +143,9 @@ public class PaymentService {
                     command.getPaymentId().toString(),
                     command.getTotalPrice()
             );
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             paymentStatusService.failPayment(command.getPaymentId());
-            throw new RuntimeException(e);
+            throw e;
         }
 
         return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.paymentKey());

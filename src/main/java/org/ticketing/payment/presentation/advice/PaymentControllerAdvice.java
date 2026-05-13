@@ -1,6 +1,8 @@
 package org.ticketing.payment.presentation.advice;
 
 import feign.FeignException;
+import jakarta.validation.ConstraintViolationException;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -8,18 +10,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.ticketing.payment.domain.exception.DuplicatePaymentException;
-import org.ticketing.payment.domain.exception.InvalidPaymentStatusTransitionException;
-import org.ticketing.payment.domain.exception.InvalidReservationStateException;
-import org.ticketing.payment.domain.exception.PaymentAlreadyTerminatedException;
-import org.ticketing.payment.domain.exception.PaymentAmountMismatchException;
-import org.ticketing.payment.domain.exception.PaymentNotFoundException;
-import org.ticketing.payment.domain.exception.PaymentReservationMismatchException;
-import org.ticketing.payment.domain.exception.PaymentUserMismatchException;
-import org.ticketing.payment.domain.exception.TossPaymentCancelException;
-import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
+import org.ticketing.payment.domain.exception.PaymentException;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -30,14 +25,14 @@ import java.util.Map;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class PaymentControllerAdvice {
 
-    @ExceptionHandler(PaymentNotFoundException.class)
-    public ResponseEntity<Map<String, Object>> handlePaymentNotFound(PaymentNotFoundException ex) {
-        return errorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
-    }
-
-    @ExceptionHandler(DuplicatePaymentException.class)
-    public ResponseEntity<Map<String, Object>> handleDuplicatePayment(DuplicatePaymentException ex) {
-        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
+    @ExceptionHandler(PaymentException.class)
+    public ResponseEntity<Map<String, Object>> handlePaymentException(PaymentException ex) {
+        if (ex.getStatus().is5xxServerError()) {
+            log.error("Payment error [{}]: {}", ex.getCode(), ex.getMessage());
+        } else {
+            log.warn("Payment error [{}]: {}", ex.getCode(), ex.getMessage());
+        }
+        return errorResponse(ex.getStatus(), ex.getCode().name(), ex.getMessage());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
@@ -56,36 +51,6 @@ public class PaymentControllerAdvice {
         return errorResponse(HttpStatus.INTERNAL_SERVER_ERROR, "A database integrity error occurred");
     }
 
-    @ExceptionHandler(InvalidPaymentStatusTransitionException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidStatusTransition(InvalidPaymentStatusTransitionException ex) {
-        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    @ExceptionHandler(PaymentAlreadyTerminatedException.class)
-    public ResponseEntity<Map<String, Object>> handleAlreadyTerminated(PaymentAlreadyTerminatedException ex) {
-        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    @ExceptionHandler(PaymentAmountMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleAmountMismatch(PaymentAmountMismatchException ex) {
-        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(PaymentReservationMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleReservationMismatch(PaymentReservationMismatchException ex) {
-        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    @ExceptionHandler(InvalidReservationStateException.class)
-    public ResponseEntity<Map<String, Object>> handleInvalidReservationState(InvalidReservationStateException ex) {
-        return errorResponse(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    @ExceptionHandler(PaymentUserMismatchException.class)
-    public ResponseEntity<Map<String, Object>> handleUserMismatch(PaymentUserMismatchException ex) {
-        return errorResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
     @ExceptionHandler(FeignException.NotFound.class)
     public ResponseEntity<Map<String, Object>> handleFeignNotFound(FeignException.NotFound ex) {
         log.warn("Reservation not found via Feign: {}", ex.getMessage());
@@ -98,22 +63,31 @@ public class PaymentControllerAdvice {
         return errorResponse(HttpStatus.BAD_GATEWAY, "예약 서비스 호출에 실패했습니다.");
     }
 
-    @ExceptionHandler(TossPaymentConfirmException.class)
-    public ResponseEntity<Map<String, Object>> handleTossConfirmFail(TossPaymentConfirmException ex) {
-        log.error("Toss confirm failed: {}", ex.getMessage());
-        return errorResponse(HttpStatus.BAD_GATEWAY, "Payment confirmation failed due to an upstream error");
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(FieldError::getDefaultMessage)
+                .collect(Collectors.joining(", "));
+        return errorResponse(HttpStatus.BAD_REQUEST, message);
     }
 
-    @ExceptionHandler(TossPaymentCancelException.class)
-    public ResponseEntity<Map<String, Object>> handleTossCancelFail(TossPaymentCancelException ex) {
-        log.error("Toss cancel failed: {}", ex.getMessage());
-        return errorResponse(HttpStatus.BAD_GATEWAY, "Payment cancellation failed due to an upstream error");
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleConstraintViolation(ConstraintViolationException ex) {
+        String message = ex.getConstraintViolations().stream()
+                .map(v -> v.getMessage())
+                .collect(Collectors.joining(", "));
+        return errorResponse(HttpStatus.BAD_REQUEST, message);
     }
 
     private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String message) {
+        return errorResponse(status, null, message);
+    }
+
+    private ResponseEntity<Map<String, Object>> errorResponse(HttpStatus status, String code, String message) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("status", status.value());
         body.put("error", status.toString());
+        if (code != null) body.put("code", code);
         body.put("message", message);
         body.put("timestamp", Instant.now().toString());
         return ResponseEntity.status(status).body(body);

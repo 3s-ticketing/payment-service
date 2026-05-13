@@ -4,7 +4,8 @@ import java.util.Random;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-import org.ticketing.payment.domain.exception.TossPaymentConfirmException;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.domain.provider.TossPaymentProvider;
 
 @Component
@@ -65,7 +66,7 @@ public class MockTossPaymentProvider implements TossPaymentProvider {
 
     private void simulateFailure() {
         if (random.nextDouble() < failureRate) {
-            throw new TossPaymentConfirmException(400, "CARD_DECLINED: 카드 한도 초과 (Mock)");
+            throw new PaymentException(PaymentErrorCode.TOSS_CONFIRM_FAILED, "status: 400, body: CARD_DECLINED: 카드 한도 초과 (Mock)");
         }
     }
 }

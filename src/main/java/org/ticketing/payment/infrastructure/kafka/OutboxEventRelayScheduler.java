@@ -40,12 +40,13 @@ public class OutboxEventRelayScheduler {
     }
 
     private CompletableFuture<Void> publish(PaymentOutbox outbox) {
+        UUID messageId = outbox.getId();
         UUID paymentId = outbox.getPaymentId();
         UUID orderId   = outbox.getOrderId();
         return switch (outbox.getTopic()) {
-            case "payment.completed" -> paymentEventPublisher.publishPaymentCompleted(paymentId, orderId);
-            case "payment.failed"    -> paymentEventPublisher.publishPaymentFailed(paymentId, orderId);
-            case "payment.refunded"  -> paymentEventPublisher.publishPaymentRefunded(paymentId, orderId);
+            case "payment.completed" -> paymentEventPublisher.publishPaymentCompleted(messageId, paymentId, orderId);
+            case "payment.failed"    -> paymentEventPublisher.publishPaymentFailed(messageId, paymentId, orderId);
+            case "payment.refunded"  -> paymentEventPublisher.publishPaymentRefunded(messageId, paymentId, orderId);
             default -> CompletableFuture.failedFuture(
                     new IllegalStateException("알 수 없는 outbox 토픽: " + outbox.getTopic()));
         };

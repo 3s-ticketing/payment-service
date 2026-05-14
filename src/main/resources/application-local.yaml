@@ -41,6 +41,10 @@ eureka:
 toss:
   secret-key: ${TOSS_SECRET_KEY}
 
+feign:
+  circuitbreaker:
+    enabled: true
+
 resilience4j:
   circuitbreaker:
     instances:

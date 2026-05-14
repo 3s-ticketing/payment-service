@@ -7,7 +7,7 @@ import org.ticketing.payment.domain.client.ReservationClient;
 
 import java.util.UUID;
 
-@FeignClient(name = "reservation-service", path = "/internal/reservations")
+@FeignClient(name = "reservation-service", path = "/internal/reservations", fallback = ReservationClientFallback.class)
 public interface ReservationFeignClient extends ReservationClient {
 
     @GetMapping("/{reservationId}/detail")

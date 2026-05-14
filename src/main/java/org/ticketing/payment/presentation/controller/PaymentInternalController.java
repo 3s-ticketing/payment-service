@@ -48,4 +48,10 @@ public class PaymentInternalController {
     public PaymentResponseDto getSuccessPaymentByReservationId(@PathVariable @NotNull UUID reservationId) {
         return PaymentResponseDto.from(paymentService.getSuccessPaymentByReservationId(reservationId));
     }
+
+    // reservationId에 따른 가장 최근 결제 시도 1건 조회 (상태 무관)
+    @GetMapping("/reservations/{reservationId}/latest")
+    public PaymentResponseDto getLatestPaymentByReservationId(@PathVariable @NotNull UUID reservationId) {
+        return PaymentResponseDto.from(paymentService.getLatestPaymentByReservationId(reservationId));
+    }
 }

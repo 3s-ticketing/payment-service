@@ -21,4 +21,5 @@ public interface PaymentRepository {
     Optional<Payment> findSuccessPaymentByReservationIdAndUserId(UUID reservationId, UUID userId);
     Page<Payment> findByUserId(UUID userId, Pageable pageable);
     List<Payment> findStuckPayments(PaymentStatus status, LocalDateTime before);
+    Optional<Payment> findLatestByReservationId(UUID reservationId);
 }

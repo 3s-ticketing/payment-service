@@ -40,3 +40,17 @@ eureka:
 
 toss:
   secret-key: ${TOSS_SECRET_KEY}
+
+feign:
+  circuitbreaker:
+    enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      toss:
+        sliding-window-size: 10                      # 최근 10건 기준으로 실패율 계산
+        failure-rate-threshold: 50                   # 50% 이상 실패 → OPEN
+        wait-duration-in-open-state: 10s             # 10초 대기 후 HALF-OPEN 전환
+        permitted-number-of-calls-in-half-open-state: 3  # HALF-OPEN에서 3건 시도 후 판단
+        register-health-indicator: true

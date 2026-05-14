@@ -18,6 +18,7 @@ public interface JpaPaymentRepository extends JpaRepository<Payment, UUID> {
     Page<Payment> findByReservationIdAndDeletedAtIsNull(UUID reservationId, Pageable pageable);
     Page<Payment> findByReservationIdAndUserIdAndDeletedAtIsNull(UUID reservationId, UUID userId, Pageable pageable);
     Optional<Payment> findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId, PaymentStatus status);
+    Optional<Payment> findFirstByReservationIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId);
     Optional<Payment> findFirstByReservationIdAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId, UUID userId, PaymentStatus status);
     Page<Payment> findByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
     List<Payment> findByStatusAndModifiedAtBeforeAndDeletedAtIsNull(PaymentStatus status, LocalDateTime before);

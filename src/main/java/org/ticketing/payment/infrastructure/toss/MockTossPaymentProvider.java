@@ -1,5 +1,6 @@
 package org.ticketing.payment.infrastructure.toss;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.util.Random;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
@@ -32,6 +33,7 @@ public class MockTossPaymentProvider implements TossPaymentProvider {
     private final Random random = new Random();
 
     @Override
+    @CircuitBreaker(name = "toss", fallbackMethod = "confirmFallback")
     public ConfirmResult confirm(String paymentKey, String orderId, Long amount) {
         simulateDelay();
         simulateFailure();
@@ -39,6 +41,7 @@ public class MockTossPaymentProvider implements TossPaymentProvider {
     }
 
     @Override
+    @CircuitBreaker(name = "toss", fallbackMethod = "cancelFallback")
     public void cancel(String paymentKey, String cancelReason) {
         simulateDelay();
     }
@@ -68,5 +71,13 @@ public class MockTossPaymentProvider implements TossPaymentProvider {
         if (random.nextDouble() < failureRate) {
             throw new PaymentException(PaymentErrorCode.TOSS_CONFIRM_FAILED, "status: 400, body: CARD_DECLINED: 카드 한도 초과 (Mock)");
         }
+    }
+
+    private ConfirmResult confirmFallback(String paymentKey, String orderId, Long amount, Throwable t) {
+        throw new PaymentException(PaymentErrorCode.TOSS_CONFIRM_FAILED, "PG 일시 장애 (CB OPEN): " + t.getMessage());
+    }
+
+    private void cancelFallback(String paymentKey, String cancelReason, Throwable t) {
+        throw new PaymentException(PaymentErrorCode.TOSS_CANCEL_FAILED, "PG 일시 장애 (CB OPEN): " + t.getMessage());
     }
 }

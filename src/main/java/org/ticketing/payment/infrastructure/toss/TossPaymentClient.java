@@ -58,6 +58,14 @@ public class TossPaymentClient {
         return tossRestClient.get()
                 .uri("/v1/payments/orders/{orderId}", orderId)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_STATUS_FETCH_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
                 .body(TossPaymentStatusResponse.class);
     }
 
@@ -65,6 +73,14 @@ public class TossPaymentClient {
         return tossRestClient.get()
                 .uri("/v1/payments/{paymentKey}", paymentKey)
                 .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_STATUS_FETCH_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
                 .body(TossPaymentStatusResponse.class);
     }
 }

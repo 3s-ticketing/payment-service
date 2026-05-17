@@ -4,9 +4,8 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import org.ticketing.payment.domain.id.UuidV7;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -23,7 +22,7 @@ import org.ticketing.common.domain.BaseEntity;
 public class PaymentOutbox extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @UuidV7
     @Column(name = "id", nullable = false, updatable = false)
     private UUID id;
 

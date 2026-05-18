@@ -47,19 +47,12 @@ class PaymentStatusServiceTest {
     @DisplayName("startPayment")
     class StartPayment {
 
-        private Payment initPayment;
-
-        @BeforeEach
-        void setUp() {
-            initPayment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-        }
-
         @Test
         void 정상_전이_INIT_to_PAYING_로그_저장() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
+            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
             given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            paymentStatusService.startPayment(PAYMENT_ID, PRICE);
+            paymentStatusService.startPayment(payment, PRICE);
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
             verify(paymentLogRepository).save(logCaptor.capture());
@@ -70,24 +63,14 @@ class PaymentStatusServiceTest {
 
         @Test
         void 금액_불일치_AMOUNT_MISMATCH() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
+            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
 
-            assertThatThrownBy(() -> paymentStatusService.startPayment(PAYMENT_ID, PRICE + 1))
+            assertThatThrownBy(() -> paymentStatusService.startPayment(payment, PRICE + 1))
                     .isInstanceOf(PaymentException.class)
                     .satisfies(e -> assertThat(((PaymentException) e).getCode())
                             .isEqualTo(PaymentErrorCode.AMOUNT_MISMATCH));
 
             verify(paymentLogRepository, never()).save(any());
-        }
-
-        @Test
-        void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> paymentStatusService.startPayment(PAYMENT_ID, PRICE))
-                    .isInstanceOf(PaymentException.class)
-                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND));
         }
     }
 
@@ -98,11 +81,10 @@ class PaymentStatusServiceTest {
         @Test
         void 정상_전이_PAYING_to_SUCCESS_로그_및_Outbox_저장() {
             Payment payment = payingPayment();
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(payment));
             given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.succeedPayment(PAYMENT_ID, "toss-key");
+            PaymentResult result = paymentStatusService.succeedPayment(payment, "toss-key");
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
 
@@ -115,16 +97,6 @@ class PaymentStatusServiceTest {
             verify(paymentOutboxRepository).save(outboxCaptor.capture());
             assertThat(outboxCaptor.getValue().getTopic()).isEqualTo("payment.completed");
         }
-
-        @Test
-        void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> paymentStatusService.succeedPayment(PAYMENT_ID, "key"))
-                    .isInstanceOf(PaymentException.class)
-                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND));
-        }
     }
 
     @Nested
@@ -134,11 +106,10 @@ class PaymentStatusServiceTest {
         @Test
         void 정상_전이_PAYING_to_FAIL_로그_및_Outbox_저장() {
             Payment payment = payingPayment();
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(payment));
             given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.failPayment(PAYMENT_ID);
+            PaymentResult result = paymentStatusService.failPayment(payment);
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.FAIL);
 
@@ -150,16 +121,6 @@ class PaymentStatusServiceTest {
             ArgumentCaptor<PaymentOutbox> outboxCaptor = ArgumentCaptor.forClass(PaymentOutbox.class);
             verify(paymentOutboxRepository).save(outboxCaptor.capture());
             assertThat(outboxCaptor.getValue().getTopic()).isEqualTo("payment.failed");
-        }
-
-        @Test
-        void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> paymentStatusService.failPayment(PAYMENT_ID))
-                    .isInstanceOf(PaymentException.class)
-                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND));
         }
     }
 
@@ -203,10 +164,9 @@ class PaymentStatusServiceTest {
         @Test
         void 정상_전이_REFUNDING_to_SUCCESS_로그_저장() {
             Payment payment = refundingPayment();
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(payment));
             given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            paymentStatusService.revertRefund(PAYMENT_ID);
+            paymentStatusService.revertRefund(payment);
 
             assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
 
@@ -214,16 +174,6 @@ class PaymentStatusServiceTest {
             verify(paymentLogRepository).save(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.REFUNDING);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.SUCCESS);
-        }
-
-        @Test
-        void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> paymentStatusService.revertRefund(PAYMENT_ID))
-                    .isInstanceOf(PaymentException.class)
-                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND));
         }
     }
 
@@ -234,11 +184,10 @@ class PaymentStatusServiceTest {
         @Test
         void 정상_전이_REFUNDING_to_REFUNDED_로그_및_Outbox_저장() {
             Payment payment = refundingPayment();
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(payment));
             given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.refundPayment(PAYMENT_ID);
+            PaymentResult result = paymentStatusService.refundPayment(payment);
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
 
@@ -250,16 +199,6 @@ class PaymentStatusServiceTest {
             ArgumentCaptor<PaymentOutbox> outboxCaptor = ArgumentCaptor.forClass(PaymentOutbox.class);
             verify(paymentOutboxRepository).save(outboxCaptor.capture());
             assertThat(outboxCaptor.getValue().getTopic()).isEqualTo("payment.refunded");
-        }
-
-        @Test
-        void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
-
-            assertThatThrownBy(() -> paymentStatusService.refundPayment(PAYMENT_ID))
-                    .isInstanceOf(PaymentException.class)
-                    .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.PAYMENT_NOT_FOUND));
         }
     }
 

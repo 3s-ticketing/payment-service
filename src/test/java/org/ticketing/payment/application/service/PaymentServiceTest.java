@@ -13,6 +13,7 @@ import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.client.ReservationClient;
 import org.ticketing.payment.domain.client.ReservationClient.ReservationDetail;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.ticketing.payment.domain.exception.PaymentErrorCode;
 import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.domain.model.Payment;
@@ -28,6 +29,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
@@ -62,7 +64,6 @@ class PaymentServiceTest {
         void 정상_생성() {
             given(reservationClient.getReservationDetail(RESERVATION_ID))
                     .willReturn(new ReservationDetail(RESERVATION_ID, USER_ID, PRICE, true));
-            given(paymentRepository.existsActivePayment(RESERVATION_ID)).willReturn(false);
             given(paymentRepository.save(any(Payment.class)))
                     .willReturn(Payment.create(USER_ID, RESERVATION_ID, PRICE));
 
@@ -105,14 +106,13 @@ class PaymentServiceTest {
         void 동일_예약에_진행중인_결제_존재시_DUPLICATE_PAYMENT() {
             given(reservationClient.getReservationDetail(RESERVATION_ID))
                     .willReturn(new ReservationDetail(RESERVATION_ID, USER_ID, PRICE, true));
-            given(paymentRepository.existsActivePayment(RESERVATION_ID)).willReturn(true);
+            given(paymentRepository.save(any(Payment.class)))
+                    .willThrow(new DataIntegrityViolationException("unique constraint"));
 
             assertThatThrownBy(() -> paymentService.createPayment(command))
                     .isInstanceOf(PaymentException.class)
                     .satisfies(e -> assertThat(((PaymentException) e).getCode())
                             .isEqualTo(PaymentErrorCode.DUPLICATE_PAYMENT));
-
-            verify(paymentRepository, never()).save(any());
         }
     }
 
@@ -134,15 +134,15 @@ class PaymentServiceTest {
             given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
             given(tossPaymentProvider.confirm("toss-key", PAYMENT_ID.toString(), PRICE))
                     .willReturn(new ConfirmResult("toss-confirmed-key", PAYMENT_ID.toString(), "DONE", PRICE));
-            given(paymentStatusService.succeedPayment(PAYMENT_ID, "toss-confirmed-key"))
+            given(paymentStatusService.succeedPayment(any(Payment.class), eq("toss-confirmed-key")))
                     .willReturn(paymentResult(PaymentStatus.SUCCESS));
 
             PaymentResult result = paymentService.confirmPayment(command);
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            verify(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
+            verify(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
             verify(tossPaymentProvider).confirm("toss-key", PAYMENT_ID.toString(), PRICE);
-            verify(paymentStatusService).succeedPayment(PAYMENT_ID, "toss-confirmed-key");
+            verify(paymentStatusService).succeedPayment(any(Payment.class), eq("toss-confirmed-key"));
         }
 
         @Test
@@ -168,7 +168,7 @@ class PaymentServiceTest {
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).failPayment(PAYMENT_ID);
+            verify(paymentStatusService).failPayment(any(Payment.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
@@ -181,14 +181,14 @@ class PaymentServiceTest {
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
+            verify(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
         }
 
         @Test
         void startPayment_실패시_Toss_미호출() {
             given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
             willThrow(new RuntimeException("금액 불일치"))
-                    .given(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
+                    .given(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
 
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
@@ -270,7 +270,7 @@ class PaymentServiceTest {
             payment.start();
             payment.succeed("toss-key");
             given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(payment);
-            given(paymentStatusService.refundPayment(payment.getId()))
+            given(paymentStatusService.refundPayment(any(Payment.class)))
                     .willReturn(paymentResult(PaymentStatus.REFUNDED));
 
             PaymentResult result = paymentService.refundPayment(RESERVATION_ID);
@@ -291,7 +291,7 @@ class PaymentServiceTest {
             assertThatThrownBy(() -> paymentService.refundPayment(RESERVATION_ID))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).revertRefund(payment.getId());
+            verify(paymentStatusService).revertRefund(any(Payment.class));
             verify(paymentStatusService, never()).refundPayment(any());
         }
     }
@@ -318,13 +318,13 @@ class PaymentServiceTest {
             given(paymentRepository.findSuccessPaymentByReservationId(RESERVATION_ID))
                     .willReturn(Optional.of(payment));
             given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(payment);
-            given(paymentStatusService.refundPayment(any()))
+            given(paymentStatusService.refundPayment(any(Payment.class)))
                     .willReturn(paymentResult(PaymentStatus.REFUNDED));
 
             paymentService.handleReservationCanceled(RESERVATION_ID, CancelReason.USER_CANCEL);
 
             verify(tossPaymentProvider).cancel("toss-key", "고객 요청 취소");
-            verify(paymentStatusService).refundPayment(any());
+            verify(paymentStatusService).refundPayment(any(Payment.class));
         }
     }
 

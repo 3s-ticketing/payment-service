@@ -19,6 +19,7 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.*;
@@ -48,12 +49,12 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.PAYING, null);
             given(tossPaymentProvider.getByOrderId(PAYMENT_ID.toString()))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "DONE", 10_000L));
-            lenient().when(paymentStatusService.succeedPayment(PAYMENT_ID, PAYMENT_KEY))
+            lenient().when(paymentStatusService.succeedPayment(any(Payment.class), eq(PAYMENT_KEY)))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverPaying(payment);
 
-            verify(paymentStatusService).succeedPayment(PAYMENT_ID, PAYMENT_KEY);
+            verify(paymentStatusService).succeedPayment(any(Payment.class), eq(PAYMENT_KEY));
             verify(paymentStatusService, never()).failPayment(any());
         }
 
@@ -63,12 +64,12 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.PAYING, null);
             given(tossPaymentProvider.getByOrderId(PAYMENT_ID.toString()))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "ABORTED", 10_000L));
-            lenient().when(paymentStatusService.failPayment(PAYMENT_ID))
+            lenient().when(paymentStatusService.failPayment(any(Payment.class)))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverPaying(payment);
 
-            verify(paymentStatusService).failPayment(PAYMENT_ID);
+            verify(paymentStatusService).failPayment(any(Payment.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
@@ -78,12 +79,12 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.PAYING, null);
             given(tossPaymentProvider.getByOrderId(PAYMENT_ID.toString()))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "EXPIRED", 10_000L));
-            lenient().when(paymentStatusService.failPayment(PAYMENT_ID))
+            lenient().when(paymentStatusService.failPayment(any(Payment.class)))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverPaying(payment);
 
-            verify(paymentStatusService).failPayment(PAYMENT_ID);
+            verify(paymentStatusService).failPayment(any(Payment.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
@@ -126,12 +127,12 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.REFUNDING, LocalDateTime.now().minusMinutes(5));
             given(tossPaymentProvider.getByPaymentKey(PAYMENT_KEY))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "CANCELED", 10_000L));
-            lenient().when(paymentStatusService.refundPayment(PAYMENT_ID))
+            lenient().when(paymentStatusService.refundPayment(any(Payment.class)))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverRefunding(payment);
 
-            verify(paymentStatusService).refundPayment(PAYMENT_ID);
+            verify(paymentStatusService).refundPayment(any(Payment.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
@@ -141,13 +142,13 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.REFUNDING, LocalDateTime.now().minusMinutes(5));
             given(tossPaymentProvider.getByPaymentKey(PAYMENT_KEY))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "DONE", 10_000L));
-            lenient().when(paymentStatusService.refundPayment(PAYMENT_ID))
+            lenient().when(paymentStatusService.refundPayment(any(Payment.class)))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverRefunding(payment);
 
             verify(tossPaymentProvider).cancel(PAYMENT_KEY, "고객 요청 취소");
-            verify(paymentStatusService).refundPayment(PAYMENT_ID);
+            verify(paymentStatusService).refundPayment(any(Payment.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
@@ -157,12 +158,12 @@ class PaymentRecoveryServiceTest {
             Payment payment = mockPayment(PaymentStatus.REFUNDING, LocalDateTime.now().minusMinutes(20));
             given(tossPaymentProvider.getByPaymentKey(PAYMENT_KEY))
                     .willReturn(new StatusResult(PAYMENT_KEY, PAYMENT_ID.toString(), "DONE", 10_000L));
-            lenient().when(paymentStatusService.succeedPayment(PAYMENT_ID, null))
+            lenient().when(paymentStatusService.succeedPayment(any(Payment.class), isNull()))
                     .thenReturn(mock(PaymentResult.class));
 
             paymentRecoveryService.recoverRefunding(payment);
 
-            verify(paymentStatusService).succeedPayment(PAYMENT_ID, null);
+            verify(paymentStatusService).succeedPayment(any(Payment.class), isNull());
             verify(paymentStatusService, never()).refundPayment(any());
             verify(tossPaymentProvider, never()).cancel(any(), any());
         }

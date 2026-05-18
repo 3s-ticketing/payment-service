@@ -49,12 +49,12 @@ public class PaymentRecoveryService {
             case "DONE" -> {
                 // toss O, payment status X
                 log.info("[복구] PAYING → SUCCESS. paymentId={}", paymentId);
-                paymentStatusService.succeedPayment(paymentId, toss.paymentKey());
+                paymentStatusService.succeedPayment(payment, toss.paymentKey());
             }
             case "ABORTED", "EXPIRED" -> {
                 // toss X, payment status X
                 log.info("[복구] PAYING → FAIL. paymentId={}, tossStatus={}", paymentId, toss.status());
-                paymentStatusService.failPayment(paymentId);
+                paymentStatusService.failPayment(payment);
             }
             default -> log.debug("[복구 스킵] PAYING 아직 진행 중. paymentId={}, tossStatus={}", paymentId, toss.status());
         }
@@ -74,20 +74,20 @@ public class PaymentRecoveryService {
             case "CANCELED" -> {
                 // toss O, payment status X
                 log.info("[복구] REFUNDING → REFUNDED. paymentId={}", paymentId);
-                paymentStatusService.refundPayment(paymentId);
+                paymentStatusService.refundPayment(payment);
             }
             case "DONE" -> {
                 // toss X, payment status X
                 Duration stuckFor = Duration.between(payment.getModifiedAt(), LocalDateTime.now());
                 if (stuckFor.compareTo(REFUND_ABANDON_THRESHOLD) > 0) {
                     log.error("[복구 포기] REFUNDING 15분 초과 — 환불 없던 일로 처리. paymentId={}, stuckMinutes={}", paymentId, stuckFor.toMinutes());
-                    paymentStatusService.succeedPayment(paymentId, null);
+                    paymentStatusService.succeedPayment(payment, null);
                     return;
                 }
                 log.info("[복구] REFUNDING - Toss 미취소 상태, 취소 재시도. paymentId={}", paymentId);
                 try {
                     tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
-                    paymentStatusService.refundPayment(paymentId);
+                    paymentStatusService.refundPayment(payment);
                 } catch (Exception e) {
                     log.error("[복구 실패] 취소 재시도 실패. paymentId={}", paymentId, e);
                 }

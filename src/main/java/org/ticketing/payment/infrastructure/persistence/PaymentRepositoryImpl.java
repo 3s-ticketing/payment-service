@@ -72,4 +72,9 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     public List<Payment> findStuckPayments(PaymentStatus status, LocalDateTime before) {
         return jpaPaymentRepository.findByStatusAndModifiedAtBeforeAndDeletedAtIsNull(status, before);
     }
+
+    @Override
+    public Optional<Payment> findLatestByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId);
+    }
 }

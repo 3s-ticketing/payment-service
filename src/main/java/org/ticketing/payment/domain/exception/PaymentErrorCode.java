@@ -15,7 +15,9 @@ public enum PaymentErrorCode {
     ALREADY_TERMINATED(HttpStatus.CONFLICT, "이미 종료된 결제입니다"),
     AMOUNT_MISMATCH(HttpStatus.BAD_REQUEST, "결제 금액 불일치"),
     TOSS_CONFIRM_FAILED(HttpStatus.BAD_GATEWAY, "Toss 결제 승인 실패"),
-    TOSS_CANCEL_FAILED(HttpStatus.BAD_GATEWAY, "Toss 결제 취소 실패");
+    TOSS_CANCEL_FAILED(HttpStatus.BAD_GATEWAY, "Toss 결제 취소 실패"),
+    TOSS_STATUS_FETCH_FAILED(HttpStatus.BAD_GATEWAY, "Toss 결제 상태 조회 실패"),
+    RESERVATION_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "예약 서비스 일시 장애");
 
     private final HttpStatus status;
     private final String message;

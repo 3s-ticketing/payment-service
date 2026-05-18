@@ -88,6 +88,13 @@ public class PaymentService {
     }
 
     @Transactional(readOnly = true)
+    public PaymentResult getLatestPaymentByReservationId(UUID reservationId) {
+        Payment payment = paymentRepository.findLatestByReservationId(reservationId)
+                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, "reservationId=" + reservationId));
+        return PaymentResult.from(payment);
+    }
+
+    @Transactional(readOnly = true)
     public PaymentResult getSuccessPaymentByReservationId(UUID reservationId) {
         Payment payment = paymentRepository.findSuccessPaymentByReservationId(reservationId)
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, "reservationId=" + reservationId));

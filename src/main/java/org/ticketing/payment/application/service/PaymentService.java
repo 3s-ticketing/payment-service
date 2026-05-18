@@ -1,6 +1,7 @@
 package org.ticketing.payment.application.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,9 +32,7 @@ public class PaymentService {
     private final PaymentStatusService paymentStatusService;
     private final ReservationClient reservationClient;
 
-    @Transactional
     public PaymentResult createPayment(CreatePaymentCommand command) {
-
         ReservationClient.ReservationDetail reservation =
                 reservationClient.getReservationDetail(command.getReservationId());
 
@@ -46,17 +45,17 @@ public class PaymentService {
                     "예약의 userId=" + reservation.userId() + ", 요청 userId=" + command.getUserId());
         }
 
-        if (paymentRepository.existsActivePayment(command.getReservationId())) {
+        try {
+            Payment payment = Payment.create(
+                    command.getUserId(),
+                    command.getReservationId(),
+                    reservation.totalPrice()
+            );
+            return PaymentResult.from(paymentRepository.save(payment));
+        } catch (DataIntegrityViolationException e) {
             throw new PaymentException(PaymentErrorCode.DUPLICATE_PAYMENT,
                     "reservationId=" + command.getReservationId());
         }
-
-        Payment payment = Payment.create(
-                command.getUserId(),
-                command.getReservationId(),
-                reservation.totalPrice()
-        );
-        return PaymentResult.from(paymentRepository.save(payment));
     }
 
     @Transactional(readOnly = true)

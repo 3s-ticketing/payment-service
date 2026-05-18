@@ -118,10 +118,10 @@ public class PaymentService {
         try {
             tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
         } catch (RuntimeException e) {
-            paymentStatusService.revertRefund(payment.getId());
+            paymentStatusService.revertRefund(payment);
             throw e;
         }
-        return paymentStatusService.refundPayment(payment.getId());
+        return paymentStatusService.refundPayment(payment);
     }
 
     public void handleReservationCanceled(UUID reservationId, CancelReason cancelReason) {
@@ -133,14 +133,13 @@ public class PaymentService {
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
-        // 이미 SUCCESS인 결제는 재처리 없이 그대로 반환
-        Payment existing = paymentRepository.findById(command.getPaymentId())
+        Payment payment = paymentRepository.findById(command.getPaymentId())
                 .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, command.getPaymentId().toString()));
-        if (existing.getStatus() == PaymentStatus.SUCCESS) {
-            return PaymentResult.from(existing);
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return PaymentResult.from(payment);
         }
 
-        paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
+        paymentStatusService.startPayment(payment, command.getTotalPrice());
 
         ConfirmResult tossResponse;
         try {
@@ -150,10 +149,10 @@ public class PaymentService {
                     command.getTotalPrice()
             );
         } catch (RuntimeException e) {
-            paymentStatusService.failPayment(command.getPaymentId());
+            paymentStatusService.failPayment(payment);
             throw e;
         }
 
-        return paymentStatusService.succeedPayment(command.getPaymentId(), tossResponse.paymentKey());
+        return paymentStatusService.succeedPayment(payment, tossResponse.paymentKey());
     }
 }

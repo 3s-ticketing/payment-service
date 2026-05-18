@@ -24,9 +24,7 @@ public class PaymentStatusService {
     private final PaymentLogRepository paymentLogRepository;
 
     @Transactional
-    public void startPayment(UUID paymentId, Long expectedAmount) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
+    public void startPayment(Payment payment, Long expectedAmount) {
         if (!payment.getTotalPrice().equals(expectedAmount)) {
             throw new PaymentException(PaymentErrorCode.AMOUNT_MISMATCH,
                     "저장된 금액 " + payment.getTotalPrice() + ", 요청 금액 " + expectedAmount);
@@ -37,9 +35,7 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult succeedPayment(UUID paymentId, String paymentKey) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
+    public PaymentResult succeedPayment(Payment payment, String paymentKey) {
         PaymentStatus fromStatus = payment.getStatus();
         payment.succeed(paymentKey);
         paymentLogRepository.save(PaymentLog.create(payment.getId(), fromStatus, payment.getStatus()));
@@ -48,9 +44,7 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public PaymentResult failPayment(UUID paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
+    public PaymentResult failPayment(Payment payment) {
         PaymentStatus fromStatus = payment.getStatus();
         payment.fail();
         paymentLogRepository.save(PaymentLog.create(payment.getId(), fromStatus, payment.getStatus()));
@@ -69,18 +63,14 @@ public class PaymentStatusService {
     }
 
     @Transactional
-    public void revertRefund(UUID paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
+    public void revertRefund(Payment payment) {
         PaymentStatus fromStatus = payment.getStatus();
         payment.revertRefund();
         paymentLogRepository.save(PaymentLog.create(payment.getId(), fromStatus, payment.getStatus()));
     }
 
     @Transactional
-    public PaymentResult refundPayment(UUID paymentId) {
-        Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, paymentId.toString()));
+    public PaymentResult refundPayment(Payment payment) {
         PaymentStatus fromStatus = payment.getStatus();
         payment.refund();
         paymentLogRepository.save(PaymentLog.create(payment.getId(), fromStatus, payment.getStatus()));

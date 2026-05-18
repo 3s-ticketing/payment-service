@@ -133,13 +133,11 @@ public class PaymentService {
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
-        Payment payment = paymentRepository.findById(command.getPaymentId())
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, command.getPaymentId().toString()));
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return PaymentResult.from(payment);
-        }
+        Payment payment = paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
-        paymentStatusService.startPayment(payment, command.getTotalPrice());
+        if (payment.getStatus() == PaymentStatus.SUCCESS) {
+            return PaymentResult.from(payment); // 멱등성
+        }
 
         ConfirmResult tossResponse;
         try {

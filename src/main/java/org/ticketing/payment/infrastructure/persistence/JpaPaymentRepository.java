@@ -7,6 +7,9 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 
@@ -22,4 +25,12 @@ public interface JpaPaymentRepository extends JpaRepository<Payment, UUID> {
     Optional<Payment> findFirstByReservationIdAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(UUID reservationId, UUID userId, PaymentStatus status);
     Page<Payment> findByUserIdAndDeletedAtIsNull(UUID userId, Pageable pageable);
     List<Payment> findByStatusAndModifiedAtBeforeAndDeletedAtIsNull(PaymentStatus status, LocalDateTime before);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Payment p SET p.status = :toStatus " +
+           "WHERE p.id = :id AND p.status = :fromStatus AND p.totalPrice = :expectedAmount")
+    int casUpdateStatusWithAmount(@Param("id") UUID id,
+                                  @Param("fromStatus") PaymentStatus fromStatus,
+                                  @Param("toStatus") PaymentStatus toStatus,
+                                  @Param("expectedAmount") Long expectedAmount);
 }

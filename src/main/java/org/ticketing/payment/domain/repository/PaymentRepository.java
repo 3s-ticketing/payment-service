@@ -22,4 +22,5 @@ public interface PaymentRepository {
     Page<Payment> findByUserId(UUID userId, Pageable pageable);
     List<Payment> findStuckPayments(PaymentStatus status, LocalDateTime before);
     Optional<Payment> findLatestByReservationId(UUID reservationId);
+    int tryStartPayment(UUID id, Long expectedAmount);
 }

@@ -77,4 +77,9 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     public Optional<Payment> findLatestByReservationId(UUID reservationId) {
         return jpaPaymentRepository.findFirstByReservationIdAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId);
     }
+
+    @Override
+    public int tryStartPayment(UUID id, Long expectedAmount) {
+        return jpaPaymentRepository.casUpdateStatusWithAmount(id, PaymentStatus.INIT, PaymentStatus.PAYING, expectedAmount);
+    }
 }

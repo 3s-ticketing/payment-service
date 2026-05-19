@@ -1,26 +1,25 @@
 package org.ticketing.payment.application.service;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.application.dto.command.ConfirmPaymentCommand;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
-import lombok.extern.slf4j.Slf4j;
+import org.ticketing.payment.domain.client.ReservationClient;
 import org.ticketing.payment.domain.exception.PaymentErrorCode;
 import org.ticketing.payment.domain.exception.PaymentException;
-import org.ticketing.payment.domain.client.ReservationClient;
-import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 import org.ticketing.payment.domain.model.Payment;
-import org.ticketing.payment.domain.model.PaymentStatus;
-import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.domain.provider.TossPaymentProvider;
 import org.ticketing.payment.domain.provider.TossPaymentProvider.ConfirmResult;
-
-import java.util.UUID;
+import org.ticketing.payment.domain.repository.PaymentRepository;
+import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
 
 @Slf4j
 @Service
@@ -37,24 +36,17 @@ public class PaymentService {
                 reservationClient.getReservationDetail(command.getReservationId());
 
         if (!reservation.isValid()) {
-            throw new PaymentException(PaymentErrorCode.INVALID_RESERVATION_STATE,
-                    "reservationId=" + command.getReservationId());
+            throw new PaymentException(PaymentErrorCode.INVALID_RESERVATION_STATE, "reservationId=" + command.getReservationId());
         }
         if (!reservation.userId().equals(command.getUserId())) {
-            throw new PaymentException(PaymentErrorCode.USER_MISMATCH,
-                    "예약의 userId=" + reservation.userId() + ", 요청 userId=" + command.getUserId());
+            throw new PaymentException(PaymentErrorCode.USER_MISMATCH, "예약의 userId=" + reservation.userId() + ", 요청 userId=" + command.getUserId());
         }
 
         try {
-            Payment payment = Payment.create(
-                    command.getUserId(),
-                    command.getReservationId(),
-                    reservation.totalPrice()
-            );
+            Payment payment = Payment.create(command.getUserId(), command.getReservationId(), reservation.totalPrice());
             return PaymentResult.from(paymentRepository.save(payment));
         } catch (DataIntegrityViolationException e) {
-            throw new PaymentException(PaymentErrorCode.DUPLICATE_PAYMENT,
-                    "reservationId=" + command.getReservationId());
+            throw new PaymentException(PaymentErrorCode.DUPLICATE_PAYMENT, "reservationId=" + command.getReservationId());
         }
     }
 
@@ -114,32 +106,25 @@ public class PaymentService {
     }
 
     public PaymentResult refundPayment(UUID reservationId) {
-        Payment payment = paymentStatusService.startRefund(reservationId);
+        PaymentContext ctx = paymentStatusService.startRefund(reservationId);
         try {
-            tossPaymentProvider.cancel(payment.getPaymentKey(), "고객 요청 취소");
+            tossPaymentProvider.cancel(ctx.paymentKey(), "고객 요청 취소");
         } catch (RuntimeException e) {
-            paymentStatusService.revertRefund(payment);
+            paymentStatusService.revertRefund(ctx);
             throw e;
         }
-        return paymentStatusService.refundPayment(payment);
+        return paymentStatusService.refundPayment(ctx);
     }
 
     public void handleReservationCanceled(UUID reservationId, CancelReason cancelReason) {
-        if (paymentRepository.findSuccessPaymentByReservationId(reservationId).isEmpty()) {
-            // Success된 결제가 없어서, 환불 이벤트 씹음
+        if (paymentRepository.findSuccessContextByReservationId(reservationId).isEmpty()) {
             return;
         }
         refundPayment(reservationId);
     }
 
     public PaymentResult confirmPayment(ConfirmPaymentCommand command) {
-        Payment payment = paymentRepository.findById(command.getPaymentId())
-                .orElseThrow(() -> new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, command.getPaymentId().toString()));
-        if (payment.getStatus() == PaymentStatus.SUCCESS) {
-            return PaymentResult.from(payment);
-        }
-
-        paymentStatusService.startPayment(payment, command.getTotalPrice());
+        PaymentContext ctx = paymentStatusService.startPayment(command.getPaymentId(), command.getTotalPrice());
 
         ConfirmResult tossResponse;
         try {
@@ -149,10 +134,10 @@ public class PaymentService {
                     command.getTotalPrice()
             );
         } catch (RuntimeException e) {
-            paymentStatusService.failPayment(payment);
+            paymentStatusService.failPayment(ctx);
             throw e;
         }
 
-        return paymentStatusService.succeedPayment(payment, tossResponse.paymentKey());
+        return paymentStatusService.succeedPayment(ctx, tossResponse.paymentKey());
     }
 }

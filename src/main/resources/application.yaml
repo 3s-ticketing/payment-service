@@ -11,6 +11,10 @@ spring:
 
   jpa:
     defer-datasource-initialization: true
+    properties:
+      hibernate:
+        jdbc.batch_size: 50
+        order_inserts: true
 
   config:
     import: "optional:configserver:http://${CONFIG_SERVER_HOST:localhost}:${CONFIG_SERVER_PORT:10002}"

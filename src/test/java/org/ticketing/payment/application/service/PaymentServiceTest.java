@@ -1,5 +1,18 @@
 package org.ticketing.payment.application.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -8,12 +21,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.application.dto.command.ConfirmPaymentCommand;
 import org.ticketing.payment.application.dto.command.CreatePaymentCommand;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.client.ReservationClient;
 import org.ticketing.payment.domain.client.ReservationClient.ReservationDetail;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.ticketing.payment.domain.exception.PaymentErrorCode;
 import org.ticketing.payment.domain.exception.PaymentException;
 import org.ticketing.payment.domain.model.Payment;
@@ -22,17 +36,6 @@ import org.ticketing.payment.domain.provider.TossPaymentProvider;
 import org.ticketing.payment.domain.provider.TossPaymentProvider.ConfirmResult;
 import org.ticketing.payment.domain.repository.PaymentRepository;
 import org.ticketing.payment.infrastructure.kafka.event.ReservationCanceledEvent.CancelReason;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.willThrow;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PaymentService")
@@ -121,74 +124,57 @@ class PaymentServiceTest {
     class ConfirmPayment {
 
         private ConfirmPaymentCommand command;
-        private Payment initPayment;
 
         @BeforeEach
         void setUp() {
             command = new ConfirmPaymentCommand("toss-key", PAYMENT_ID, PRICE);
-            initPayment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
         }
 
         @Test
         void 정상_승인() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
+            given(paymentStatusService.startPayment(PAYMENT_ID, PRICE)).willReturn(payingCtx());
             given(tossPaymentProvider.confirm("toss-key", PAYMENT_ID.toString(), PRICE))
                     .willReturn(new ConfirmResult("toss-confirmed-key", PAYMENT_ID.toString(), "DONE", PRICE));
-            given(paymentStatusService.succeedPayment(any(Payment.class), eq("toss-confirmed-key")))
+            given(paymentStatusService.succeedPayment(any(PaymentContext.class), eq("toss-confirmed-key")))
                     .willReturn(paymentResult(PaymentStatus.SUCCESS));
 
             PaymentResult result = paymentService.confirmPayment(command);
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            verify(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
+            verify(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
             verify(tossPaymentProvider).confirm("toss-key", PAYMENT_ID.toString(), PRICE);
-            verify(paymentStatusService).succeedPayment(any(Payment.class), eq("toss-confirmed-key"));
-        }
-
-        @Test
-        void 이미_SUCCESS인_결제_재요청시_멱등성_반환() {
-            Payment successPayment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-            successPayment.start();
-            successPayment.succeed("existing-key");
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(successPayment));
-
-            PaymentResult result = paymentService.confirmPayment(command);
-
-            assertThat(result.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
-            verify(paymentStatusService, never()).startPayment(any(), any());
-            verify(tossPaymentProvider, never()).confirm(any(), any(), any());
+            verify(paymentStatusService).succeedPayment(any(PaymentContext.class), eq("toss-confirmed-key"));
         }
 
         @Test
         void Toss_실패시_failPayment_호출_후_예외_전파() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
+            given(paymentStatusService.startPayment(PAYMENT_ID, PRICE)).willReturn(payingCtx());
             given(tossPaymentProvider.confirm(any(), any(), any()))
                     .willThrow(new RuntimeException("Toss 통신 오류"));
 
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).failPayment(any(Payment.class));
+            verify(paymentStatusService).failPayment(any(PaymentContext.class));
             verify(paymentStatusService, never()).succeedPayment(any(), any());
         }
 
         @Test
         void Toss_실패시_startPayment는_이미_호출된다() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
+            given(paymentStatusService.startPayment(PAYMENT_ID, PRICE)).willReturn(payingCtx());
             given(tossPaymentProvider.confirm(any(), any(), any()))
                     .willThrow(new RuntimeException("Toss 통신 오류"));
 
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
+            verify(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
         }
 
         @Test
         void startPayment_실패시_Toss_미호출() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.of(initPayment));
             willThrow(new RuntimeException("금액 불일치"))
-                    .given(paymentStatusService).startPayment(any(Payment.class), eq(PRICE));
+                    .given(paymentStatusService).startPayment(PAYMENT_ID, PRICE);
 
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(RuntimeException.class);
@@ -200,7 +186,8 @@ class PaymentServiceTest {
 
         @Test
         void 결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findById(PAYMENT_ID)).willReturn(Optional.empty());
+            given(paymentStatusService.startPayment(PAYMENT_ID, PRICE))
+                    .willThrow(new PaymentException(PaymentErrorCode.PAYMENT_NOT_FOUND, PAYMENT_ID.toString()));
 
             assertThatThrownBy(() -> paymentService.confirmPayment(command))
                     .isInstanceOf(PaymentException.class)
@@ -266,11 +253,8 @@ class PaymentServiceTest {
 
         @Test
         void 정상_환불() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-            payment.start();
-            payment.succeed("toss-key");
-            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(payment);
-            given(paymentStatusService.refundPayment(any(Payment.class)))
+            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(refundingCtx());
+            given(paymentStatusService.refundPayment(any(PaymentContext.class)))
                     .willReturn(paymentResult(PaymentStatus.REFUNDED));
 
             PaymentResult result = paymentService.refundPayment(RESERVATION_ID);
@@ -281,17 +265,14 @@ class PaymentServiceTest {
 
         @Test
         void Toss_취소_실패시_revertRefund_호출_후_예외_전파() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-            payment.start();
-            payment.succeed("toss-key");
-            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(payment);
+            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(refundingCtx());
             doThrow(new RuntimeException("Toss 취소 실패"))
                     .when(tossPaymentProvider).cancel(any(), any());
 
             assertThatThrownBy(() -> paymentService.refundPayment(RESERVATION_ID))
                     .isInstanceOf(RuntimeException.class);
 
-            verify(paymentStatusService).revertRefund(any(Payment.class));
+            verify(paymentStatusService).revertRefund(any(PaymentContext.class));
             verify(paymentStatusService, never()).refundPayment(any());
         }
     }
@@ -302,7 +283,7 @@ class PaymentServiceTest {
 
         @Test
         void SUCCESS_결제_없으면_환불_무시() {
-            given(paymentRepository.findSuccessPaymentByReservationId(RESERVATION_ID))
+            given(paymentRepository.findSuccessContextByReservationId(RESERVATION_ID))
                     .willReturn(Optional.empty());
 
             paymentService.handleReservationCanceled(RESERVATION_ID, CancelReason.USER_CANCEL);
@@ -312,23 +293,32 @@ class PaymentServiceTest {
 
         @Test
         void SUCCESS_결제_있으면_환불_실행() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-            payment.start();
-            payment.succeed("toss-key");
-            given(paymentRepository.findSuccessPaymentByReservationId(RESERVATION_ID))
-                    .willReturn(Optional.of(payment));
-            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(payment);
-            given(paymentStatusService.refundPayment(any(Payment.class)))
+            given(paymentRepository.findSuccessContextByReservationId(RESERVATION_ID))
+                    .willReturn(Optional.of(successCtx()));
+            given(paymentStatusService.startRefund(RESERVATION_ID)).willReturn(refundingCtx());
+            given(paymentStatusService.refundPayment(any(PaymentContext.class)))
                     .willReturn(paymentResult(PaymentStatus.REFUNDED));
 
             paymentService.handleReservationCanceled(RESERVATION_ID, CancelReason.USER_CANCEL);
 
             verify(tossPaymentProvider).cancel("toss-key", "고객 요청 취소");
-            verify(paymentStatusService).refundPayment(any(Payment.class));
+            verify(paymentStatusService).refundPayment(any(PaymentContext.class));
         }
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
+
+    private PaymentContext payingCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, null, PaymentStatus.PAYING, LocalDateTime.now());
+    }
+
+    private PaymentContext successCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, "toss-key", PaymentStatus.SUCCESS, LocalDateTime.now());
+    }
+
+    private PaymentContext refundingCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, "toss-key", PaymentStatus.REFUNDING, LocalDateTime.now());
+    }
 
     private PaymentResult paymentResult(PaymentStatus status) {
         return new PaymentResult(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, status);

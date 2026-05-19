@@ -1,6 +1,15 @@
 package org.ticketing.payment.application.service;
 
-import org.junit.jupiter.api.BeforeEach;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+
+import java.time.LocalDateTime;
+import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -9,25 +18,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.application.dto.result.PaymentResult;
 import org.ticketing.payment.domain.exception.PaymentErrorCode;
 import org.ticketing.payment.domain.exception.PaymentException;
-import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentLog;
 import org.ticketing.payment.domain.model.PaymentStatus;
 import org.ticketing.payment.domain.outbox.PaymentOutbox;
 import org.ticketing.payment.domain.outbox.PaymentOutboxRepository;
-import org.ticketing.payment.domain.repository.PaymentLogRepository;
 import org.ticketing.payment.domain.repository.PaymentRepository;
-
-import java.util.Optional;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import org.ticketing.payment.infrastructure.async.PaymentLogAsyncQueue;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PaymentStatusService")
@@ -35,7 +35,7 @@ class PaymentStatusServiceTest {
 
     @Mock PaymentRepository paymentRepository;
     @Mock PaymentOutboxRepository paymentOutboxRepository;
-    @Mock PaymentLogRepository paymentLogRepository;
+    @Mock PaymentLogAsyncQueue paymentLogQueue;
     @InjectMocks PaymentStatusService paymentStatusService;
 
     private static final UUID PAYMENT_ID = UUID.randomUUID();
@@ -48,29 +48,28 @@ class PaymentStatusServiceTest {
     class StartPayment {
 
         @Test
-        void 정상_전이_INIT_to_PAYING_로그_저장() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_INIT_to_PAYING_로그_큐_적재() {
+            given(paymentRepository.tryStartPayment(PAYMENT_ID, PRICE)).willReturn(Optional.of(payingCtx()));
 
-            paymentStatusService.startPayment(payment, PRICE);
+            PaymentContext result = paymentStatusService.startPayment(PAYMENT_ID, PRICE);
 
+            assertThat(result.status()).isEqualTo(PaymentStatus.PAYING);
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
-            PaymentLog log = logCaptor.getValue();
-            assertThat(log.getFromStatus()).isEqualTo(PaymentStatus.INIT);
-            assertThat(log.getToStatus()).isEqualTo(PaymentStatus.PAYING);
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
+            assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.INIT);
+            assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.PAYING);
         }
 
         @Test
-        void 금액_불일치_AMOUNT_MISMATCH() {
-            Payment payment = Payment.create(USER_ID, RESERVATION_ID, PRICE);
+        void CAS_실패_INVALID_STATUS_TRANSITION() {
+            given(paymentRepository.tryStartPayment(PAYMENT_ID, PRICE)).willReturn(Optional.empty());
 
-            assertThatThrownBy(() -> paymentStatusService.startPayment(payment, PRICE + 1))
+            assertThatThrownBy(() -> paymentStatusService.startPayment(PAYMENT_ID, PRICE))
                     .isInstanceOf(PaymentException.class)
                     .satisfies(e -> assertThat(((PaymentException) e).getCode())
-                            .isEqualTo(PaymentErrorCode.AMOUNT_MISMATCH));
+                            .isEqualTo(PaymentErrorCode.INVALID_STATUS_TRANSITION));
 
-            verify(paymentLogRepository, never()).save(any());
+            verify(paymentLogQueue, never()).enqueue(any());
         }
     }
 
@@ -79,17 +78,16 @@ class PaymentStatusServiceTest {
     class SucceedPayment {
 
         @Test
-        void 정상_전이_PAYING_to_SUCCESS_로그_및_Outbox_저장() {
-            Payment payment = payingPayment();
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_PAYING_to_SUCCESS_로그_큐_적재_Outbox_저장() {
+            given(paymentRepository.casUpdateStatusWithKey(PAYMENT_ID, PaymentStatus.PAYING, PaymentStatus.SUCCESS, "toss-key")).willReturn(1);
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.succeedPayment(payment, "toss-key");
+            PaymentResult result = paymentStatusService.succeedPayment(payingCtx(), "toss-key");
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.PAYING);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.SUCCESS);
 
@@ -104,17 +102,16 @@ class PaymentStatusServiceTest {
     class FailPayment {
 
         @Test
-        void 정상_전이_PAYING_to_FAIL_로그_및_Outbox_저장() {
-            Payment payment = payingPayment();
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_PAYING_to_FAIL_로그_큐_적재_Outbox_저장() {
+            given(paymentRepository.casUpdateStatus(PAYMENT_ID, PaymentStatus.PAYING, PaymentStatus.FAIL)).willReturn(1);
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.failPayment(payment);
+            PaymentResult result = paymentStatusService.failPayment(payingCtx());
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.FAIL);
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.PAYING);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.FAIL);
 
@@ -129,25 +126,24 @@ class PaymentStatusServiceTest {
     class StartRefund {
 
         @Test
-        void 정상_전이_SUCCESS_to_REFUNDING_로그_저장() {
-            Payment payment = successPayment();
-            given(paymentRepository.findSuccessPaymentByReservationId(RESERVATION_ID))
-                    .willReturn(Optional.of(payment));
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_SUCCESS_to_REFUNDING_로그_큐_적재() {
+            given(paymentRepository.findSuccessContextByReservationId(RESERVATION_ID))
+                    .willReturn(Optional.of(successCtx()));
+            given(paymentRepository.casUpdateStatus(PAYMENT_ID, PaymentStatus.SUCCESS, PaymentStatus.REFUNDING)).willReturn(1);
 
-            Payment result = paymentStatusService.startRefund(RESERVATION_ID);
+            PaymentContext result = paymentStatusService.startRefund(RESERVATION_ID);
 
-            assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDING);
+            assertThat(result.status()).isEqualTo(PaymentStatus.REFUNDING);
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.SUCCESS);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.REFUNDING);
         }
 
         @Test
         void SUCCESS_결제_없음_PAYMENT_NOT_FOUND() {
-            given(paymentRepository.findSuccessPaymentByReservationId(RESERVATION_ID))
+            given(paymentRepository.findSuccessContextByReservationId(RESERVATION_ID))
                     .willReturn(Optional.empty());
 
             assertThatThrownBy(() -> paymentStatusService.startRefund(RESERVATION_ID))
@@ -162,16 +158,13 @@ class PaymentStatusServiceTest {
     class RevertRefund {
 
         @Test
-        void 정상_전이_REFUNDING_to_SUCCESS_로그_저장() {
-            Payment payment = refundingPayment();
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_REFUNDING_to_SUCCESS_로그_큐_적재() {
+            given(paymentRepository.casUpdateStatus(PAYMENT_ID, PaymentStatus.REFUNDING, PaymentStatus.SUCCESS)).willReturn(1);
 
-            paymentStatusService.revertRefund(payment);
-
-            assertThat(payment.getStatus()).isEqualTo(PaymentStatus.SUCCESS);
+            paymentStatusService.revertRefund(refundingCtx());
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.REFUNDING);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.SUCCESS);
         }
@@ -182,17 +175,16 @@ class PaymentStatusServiceTest {
     class RefundPayment {
 
         @Test
-        void 정상_전이_REFUNDING_to_REFUNDED_로그_및_Outbox_저장() {
-            Payment payment = refundingPayment();
-            given(paymentLogRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
+        void 정상_전이_REFUNDING_to_REFUNDED_로그_큐_적재_Outbox_저장() {
+            given(paymentRepository.casUpdateStatus(PAYMENT_ID, PaymentStatus.REFUNDING, PaymentStatus.REFUNDED)).willReturn(1);
             given(paymentOutboxRepository.save(any())).willAnswer(inv -> inv.getArgument(0));
 
-            PaymentResult result = paymentStatusService.refundPayment(payment);
+            PaymentResult result = paymentStatusService.refundPayment(refundingCtx());
 
             assertThat(result.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
 
             ArgumentCaptor<PaymentLog> logCaptor = ArgumentCaptor.forClass(PaymentLog.class);
-            verify(paymentLogRepository).save(logCaptor.capture());
+            verify(paymentLogQueue).enqueue(logCaptor.capture());
             assertThat(logCaptor.getValue().getFromStatus()).isEqualTo(PaymentStatus.REFUNDING);
             assertThat(logCaptor.getValue().getToStatus()).isEqualTo(PaymentStatus.REFUNDED);
 
@@ -204,21 +196,19 @@ class PaymentStatusServiceTest {
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private Payment payingPayment() {
-        Payment p = Payment.create(USER_ID, RESERVATION_ID, PRICE);
-        p.start();
-        return p;
+    private PaymentContext initCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, null, PaymentStatus.INIT, LocalDateTime.now());
     }
 
-    private Payment successPayment() {
-        Payment p = payingPayment();
-        p.succeed("toss-key");
-        return p;
+    private PaymentContext payingCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, null, PaymentStatus.PAYING, LocalDateTime.now());
     }
 
-    private Payment refundingPayment() {
-        Payment p = successPayment();
-        p.startRefund();
-        return p;
+    private PaymentContext successCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, "toss-key", PaymentStatus.SUCCESS, LocalDateTime.now());
+    }
+
+    private PaymentContext refundingCtx() {
+        return new PaymentContext(PAYMENT_ID, USER_ID, RESERVATION_ID, PRICE, "toss-key", PaymentStatus.REFUNDING, LocalDateTime.now());
     }
 }

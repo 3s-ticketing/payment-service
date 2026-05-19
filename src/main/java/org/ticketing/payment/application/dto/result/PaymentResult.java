@@ -3,6 +3,7 @@ package org.ticketing.payment.application.dto.result;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 
@@ -23,6 +24,16 @@ public class PaymentResult {
                 payment.getReservationId(),
                 payment.getTotalPrice(),
                 payment.getStatus()
+        );
+    }
+
+    public static PaymentResult from(PaymentContext ctx) {
+        return new PaymentResult(
+                ctx.paymentId(),
+                ctx.userId(),
+                ctx.reservationId(),
+                ctx.totalPrice(),
+                ctx.status()
         );
     }
 }

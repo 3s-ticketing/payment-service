@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 
@@ -20,7 +21,15 @@ public interface PaymentRepository {
     Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId);
     Optional<Payment> findSuccessPaymentByReservationIdAndUserId(UUID reservationId, UUID userId);
     Page<Payment> findByUserId(UUID userId, Pageable pageable);
-    List<Payment> findStuckPayments(PaymentStatus status, LocalDateTime before);
     Optional<Payment> findLatestByReservationId(UUID reservationId);
-    int tryStartPayment(UUID id, Long expectedAmount);
+
+    // CAS UPDATEs
+    Optional<PaymentContext> tryStartPayment(UUID id, Long expectedAmount);
+    int casUpdateStatus(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus);
+    int casUpdateStatusWithKey(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus, String paymentKey);
+
+    // Projection queries
+    Optional<PaymentContext> findContextById(UUID id);
+    Optional<PaymentContext> findSuccessContextByReservationId(UUID reservationId);
+    List<PaymentContext> findStuckContexts(PaymentStatus status, LocalDateTime before);
 }

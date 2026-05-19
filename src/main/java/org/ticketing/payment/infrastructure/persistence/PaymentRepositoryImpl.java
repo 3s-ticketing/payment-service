@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
+import org.ticketing.payment.application.dto.PaymentContext;
 import org.ticketing.payment.domain.model.Payment;
 import org.ticketing.payment.domain.model.PaymentStatus;
 import org.ticketing.payment.domain.repository.PaymentRepository;
@@ -15,12 +16,10 @@ import org.ticketing.payment.domain.repository.PaymentRepository;
 @Repository
 @RequiredArgsConstructor
 public class PaymentRepositoryImpl implements PaymentRepository {
+
     private final JpaPaymentRepository jpaPaymentRepository;
 
-    @Override
-    public Payment save(Payment payment) {
-        return jpaPaymentRepository.save(payment);
-    }
+    @Override public Payment save(Payment payment) { return jpaPaymentRepository.save(payment); }
 
     @Override
     public Optional<Payment> findById(UUID id) {
@@ -32,10 +31,7 @@ public class PaymentRepositoryImpl implements PaymentRepository {
         return jpaPaymentRepository.findByIdAndUserIdAndDeletedAtIsNull(id, userId);
     }
 
-    @Override
-    public Page<Payment> findAll(Pageable pageable) {
-        return jpaPaymentRepository.findAllByDeletedAtIsNull(pageable);
-    }
+    @Override public Page<Payment> findAll(Pageable pageable) { return jpaPaymentRepository.findAllByDeletedAtIsNull(pageable); }
 
     @Override
     public boolean existsActivePayment(UUID reservationId) {
@@ -69,17 +65,40 @@ public class PaymentRepositoryImpl implements PaymentRepository {
     }
 
     @Override
-    public List<Payment> findStuckPayments(PaymentStatus status, LocalDateTime before) {
-        return jpaPaymentRepository.findByStatusAndModifiedAtBeforeAndDeletedAtIsNull(status, before);
-    }
-
-    @Override
     public Optional<Payment> findLatestByReservationId(UUID reservationId) {
         return jpaPaymentRepository.findFirstByReservationIdAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId);
     }
 
     @Override
-    public int tryStartPayment(UUID id, Long expectedAmount) {
-        return jpaPaymentRepository.casUpdateStatusWithAmount(id, PaymentStatus.INIT, PaymentStatus.PAYING, expectedAmount);
+    public Optional<PaymentContext> tryStartPayment(UUID id, Long expectedAmount) {
+        int updated = jpaPaymentRepository.casUpdateStatusWithAmount(id, PaymentStatus.INIT, PaymentStatus.PAYING, expectedAmount);
+        if (updated == 0) return Optional.empty();
+        return jpaPaymentRepository.findContextById(id);
+    }
+
+    @Override
+    public int casUpdateStatus(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus) {
+        return jpaPaymentRepository.casUpdateStatus(id, fromStatus, toStatus);
+    }
+
+    @Override
+    public int casUpdateStatusWithKey(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus, String paymentKey) {
+        return jpaPaymentRepository.casUpdateStatusWithKey(id, fromStatus, toStatus, paymentKey);
+    }
+
+    @Override
+    public Optional<PaymentContext> findContextById(UUID id) {
+        return jpaPaymentRepository.findContextById(id);
+    }
+
+    @Override
+    public Optional<PaymentContext> findSuccessContextByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findContextsByReservationIdAndStatus(reservationId, PaymentStatus.SUCCESS)
+                .stream().findFirst();
+    }
+
+    @Override
+    public List<PaymentContext> findStuckContexts(PaymentStatus status, LocalDateTime before) {
+        return jpaPaymentRepository.findStuckContexts(status, before);
     }
 }

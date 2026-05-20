@@ -1,0 +1,108 @@
+package org.ticketing.payment.domain.model;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import org.ticketing.payment.domain.id.UuidV7;
+import jakarta.persistence.Table;
+import jakarta.persistence.Version;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import java.util.UUID;
+import org.ticketing.common.domain.BaseEntity;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
+
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Entity
+@Table(name = "p_payment")
+public class Payment extends BaseEntity {
+
+    @Id
+    @UuidV7
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @Column(name = "user_id", nullable = false, updatable = false)
+    private UUID userId;
+
+    @Column(name = "reservation_id", nullable = false, updatable = false)
+    private UUID reservationId;
+
+    @Column(name = "total_price", nullable = false)
+    private Long totalPrice;
+
+    @Column(name = "payment_key", length = 200)
+    private String paymentKey;
+
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 15, nullable = false)
+    private PaymentStatus status;
+
+    @Builder
+    private Payment(UUID userId, UUID reservationId, Long totalPrice) {
+        this.userId = userId;
+        this.reservationId = reservationId;
+        this.totalPrice = totalPrice;
+        this.status = PaymentStatus.INIT;
+    }
+
+    public static Payment create(UUID userId, UUID reservationId, Long totalPrice) {
+        return Payment.builder()
+                .userId(userId)
+                .reservationId(reservationId)
+                .totalPrice(totalPrice)
+                .build();
+    }
+
+    private void updateStatus(PaymentStatus next) {
+        if (this.status.isTerminal()) {
+            throw new PaymentException(PaymentErrorCode.ALREADY_TERMINATED, String.valueOf(this.status));
+        }
+
+        if (!this.status.canTransitionTo(next)) {
+            throw new PaymentException(PaymentErrorCode.INVALID_STATUS_TRANSITION,
+                    this.status + "에서 " + next + "로 변경될 수 없습니다");
+        }
+
+        this.status = next;
+    }
+
+    public void start() {
+        updateStatus(PaymentStatus.PAYING);
+    }
+
+    public void succeed(String paymentKey) {
+        updateStatus(PaymentStatus.SUCCESS);
+        if (paymentKey != null) this.paymentKey = paymentKey;
+    }
+
+    public void fail() {
+        updateStatus(PaymentStatus.FAIL);
+    }
+
+    public void startRefund() {
+        updateStatus(PaymentStatus.REFUNDING);
+    }
+
+    public void revertRefund() {
+        updateStatus(PaymentStatus.SUCCESS);
+    }
+
+    public void refund() {
+        updateStatus(PaymentStatus.REFUNDED);
+    }
+
+    public void expire() {
+        updateStatus(PaymentStatus.EXPIRED);
+    }
+}

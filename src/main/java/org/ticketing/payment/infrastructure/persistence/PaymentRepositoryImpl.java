@@ -1,0 +1,104 @@
+package org.ticketing.payment.infrastructure.persistence;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Repository;
+import org.ticketing.payment.application.dto.PaymentContext;
+import org.ticketing.payment.domain.model.Payment;
+import org.ticketing.payment.domain.model.PaymentStatus;
+import org.ticketing.payment.domain.repository.PaymentRepository;
+
+@Repository
+@RequiredArgsConstructor
+public class PaymentRepositoryImpl implements PaymentRepository {
+
+    private final JpaPaymentRepository jpaPaymentRepository;
+
+    @Override public Payment save(Payment payment) { return jpaPaymentRepository.save(payment); }
+
+    @Override
+    public Optional<Payment> findById(UUID id) {
+        return jpaPaymentRepository.findByIdAndDeletedAtIsNull(id);
+    }
+
+    @Override
+    public Optional<Payment> findByIdAndUserId(UUID id, UUID userId) {
+        return jpaPaymentRepository.findByIdAndUserIdAndDeletedAtIsNull(id, userId);
+    }
+
+    @Override public Page<Payment> findAll(Pageable pageable) { return jpaPaymentRepository.findAllByDeletedAtIsNull(pageable); }
+
+    @Override
+    public boolean existsActivePayment(UUID reservationId) {
+        return jpaPaymentRepository.existsByReservationIdAndStatusIn(
+                reservationId, List.of(PaymentStatus.INIT, PaymentStatus.PAYING));
+    }
+
+    @Override
+    public Page<Payment> findByReservationId(UUID reservationId, Pageable pageable) {
+        return jpaPaymentRepository.findByReservationIdAndDeletedAtIsNull(reservationId, pageable);
+    }
+
+    @Override
+    public Page<Payment> findByReservationIdAndUserId(UUID reservationId, UUID userId, Pageable pageable) {
+        return jpaPaymentRepository.findByReservationIdAndUserIdAndDeletedAtIsNull(reservationId, userId, pageable);
+    }
+
+    @Override
+    public Optional<Payment> findSuccessPaymentByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, PaymentStatus.SUCCESS);
+    }
+
+    @Override
+    public Optional<Payment> findSuccessPaymentByReservationIdAndUserId(UUID reservationId, UUID userId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndUserIdAndStatusAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId, userId, PaymentStatus.SUCCESS);
+    }
+
+    @Override
+    public Page<Payment> findByUserId(UUID userId, Pageable pageable) {
+        return jpaPaymentRepository.findByUserIdAndDeletedAtIsNull(userId, pageable);
+    }
+
+    @Override
+    public Optional<Payment> findLatestByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findFirstByReservationIdAndDeletedAtIsNullOrderByCreatedAtDesc(reservationId);
+    }
+
+    @Override
+    public Optional<PaymentContext> tryStartPayment(UUID id, Long expectedAmount) {
+        int updated = jpaPaymentRepository.casUpdateStatusWithAmount(id, PaymentStatus.INIT, PaymentStatus.PAYING, expectedAmount);
+        if (updated == 0) return Optional.empty();
+        return jpaPaymentRepository.findContextById(id);
+    }
+
+    @Override
+    public int casUpdateStatus(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus) {
+        return jpaPaymentRepository.casUpdateStatus(id, fromStatus, toStatus);
+    }
+
+    @Override
+    public int casUpdateStatusWithKey(UUID id, PaymentStatus fromStatus, PaymentStatus toStatus, String paymentKey) {
+        return jpaPaymentRepository.casUpdateStatusWithKey(id, fromStatus, toStatus, paymentKey);
+    }
+
+    @Override
+    public Optional<PaymentContext> findContextById(UUID id) {
+        return jpaPaymentRepository.findContextById(id);
+    }
+
+    @Override
+    public Optional<PaymentContext> findSuccessContextByReservationId(UUID reservationId) {
+        return jpaPaymentRepository.findContextsByReservationIdAndStatus(reservationId, PaymentStatus.SUCCESS)
+                .stream().findFirst();
+    }
+
+    @Override
+    public List<PaymentContext> findStuckContexts(PaymentStatus status, LocalDateTime before) {
+        return jpaPaymentRepository.findStuckContexts(status, before);
+    }
+}

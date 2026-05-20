@@ -1,0 +1,86 @@
+package org.ticketing.payment.infrastructure.toss;
+
+import java.nio.charset.StandardCharsets;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestClient;
+import org.ticketing.payment.domain.exception.PaymentErrorCode;
+import org.ticketing.payment.domain.exception.PaymentException;
+import org.ticketing.payment.infrastructure.toss.dto.TossCancelRequest;
+import org.ticketing.payment.infrastructure.toss.dto.TossCancelResponse;
+import org.ticketing.payment.infrastructure.toss.dto.TossConfirmRequest;
+import org.ticketing.payment.infrastructure.toss.dto.TossConfirmResponse;
+import org.ticketing.payment.infrastructure.toss.dto.TossPaymentStatusResponse;
+
+@Component
+@RequiredArgsConstructor
+public class TossPaymentClient {
+
+    private final RestClient tossRestClient;
+
+    public TossConfirmResponse confirm(String paymentKey, String orderId, Long amount) {
+        return tossRestClient.post()
+                .uri("/v1/payments/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new TossConfirmRequest(paymentKey, orderId, amount))
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_CONFIRM_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
+                .body(TossConfirmResponse.class);
+    }
+
+    public TossCancelResponse cancel(String paymentKey, String cancelReason) {
+        return tossRestClient.post()
+                .uri("/v1/payments/{paymentKey}/cancel", paymentKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(new TossCancelRequest(cancelReason))
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_CANCEL_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
+                .body(TossCancelResponse.class);
+    }
+
+    // TOSS에서의 orderId = Payment service의 paymentId
+    public TossPaymentStatusResponse getByOrderId(String orderId) {
+        return tossRestClient.get()
+                .uri("/v1/payments/orders/{orderId}", orderId)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_STATUS_FETCH_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
+                .body(TossPaymentStatusResponse.class);
+    }
+
+    public TossPaymentStatusResponse getByPaymentKey(String paymentKey) {
+        return tossRestClient.get()
+                .uri("/v1/payments/{paymentKey}", paymentKey)
+                .retrieve()
+                .onStatus(
+                        status -> !status.is2xxSuccessful(),
+                        (request, response) -> {
+                            String body = new String(response.getBody().readAllBytes(), StandardCharsets.UTF_8);
+                            throw new PaymentException(PaymentErrorCode.TOSS_STATUS_FETCH_FAILED,
+                                    "status: " + response.getStatusCode().value() + ", body: " + body);
+                        }
+                )
+                .body(TossPaymentStatusResponse.class);
+    }
+}

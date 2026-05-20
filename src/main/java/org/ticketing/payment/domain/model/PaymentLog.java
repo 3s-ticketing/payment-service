@@ -1,0 +1,53 @@
+package org.ticketing.payment.domain.model;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Id;
+import org.ticketing.payment.domain.id.UuidV7;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+import java.util.UUID;
+
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Entity
+@Table(name = "p_payment_log")
+public class PaymentLog {
+
+    @Id
+    @UuidV7
+    @Column(name = "id", nullable = false, updatable = false)
+    private UUID id;
+
+    @Column(name = "payment_id", nullable = false, updatable = false)
+    private UUID paymentId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "from_status", nullable = false, updatable = false)
+    private PaymentStatus fromStatus;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "to_status", nullable = false, updatable = false)
+    private PaymentStatus toStatus;
+
+    @Builder
+    private PaymentLog(UUID paymentId, PaymentStatus fromStatus, PaymentStatus toStatus) {
+        this.paymentId = paymentId;
+        this.fromStatus = fromStatus;
+        this.toStatus = toStatus;
+    }
+
+    public static PaymentLog create(UUID paymentId, PaymentStatus fromStatus, PaymentStatus toStatus) {
+        return PaymentLog.builder()
+                .paymentId(paymentId)
+                .fromStatus(fromStatus)
+                .toStatus(toStatus)
+                .build();
+    }
+}
